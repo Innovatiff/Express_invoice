@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Facturación Express / Express Invoicing</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="login-brand">
+        <h1>Facturación Express <span class="bi-en-inline">Express Invoicing</span></h1>
+        <p>Cargando… / Loading…</p>
+      </div>
+    </div>
+  </div>
+  <script type="module">
+    import { auth, onAuthStateChanged } from './js/fb.js';
+    import { isConfigured } from './js/firebase-config.js';
+
+    if (!isConfigured()) {
+      location.replace('login.html');
+    } else {
+      onAuthStateChanged(auth, (user) => {
+        location.replace(user ? 'dashboard.html' : 'login.html');
+      });
+    }
+  </script>
+</body>
+</html>

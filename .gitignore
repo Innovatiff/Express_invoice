@@ -1,0 +1,24 @@
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+database-debug.log
+
+# Local Firebase project binding (each machine sets its own)
+# .firebaserc is committed with a placeholder; override locally if needed.
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Node (only used for optional local tooling — the app itself has no build step)
+node_modules/
+npm-debug.log*
+
+# Local data exports / backups
+backups/
+*.local.csv

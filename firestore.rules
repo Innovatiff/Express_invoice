@@ -1,0 +1,81 @@
+rules_version = '2';
+
+// ---------------------------------------------------------------------------
+// Express Invoice (replacement) — Firestore security rules
+//
+// This is a SINGLE-USER system. Exactly one Firebase Auth account exists (the
+// shop owner). There are no roles and no permission matrix.
+//
+// HARDENING (recommended, do this right after you create the owner account):
+//   1. Sign in once, open Settings / Configuración — your UID is shown at the
+//      bottom of the page.
+//   2. Paste it into OWNER_UID below.
+//   3. Deploy:  firebase deploy --only firestore:rules
+//
+// Until OWNER_UID is set, any authenticated account can read/write. Because
+// the app has no sign-up screen and Email/Password sign-up should be disabled
+// in the Firebase console (Authentication -> Settings -> User actions), that
+// is still a closed system — but pinning the UID is the belt-and-braces
+// version and takes ten seconds.
+// ---------------------------------------------------------------------------
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Replace '' with your UID, e.g. 'a1B2c3D4e5F6g7H8i9J0kLmNoP1'
+    function ownerUid() {
+      return '';
+    }
+
+    function isOwner() {
+      return request.auth != null
+        && (ownerUid() == '' || request.auth.uid == ownerUid());
+    }
+
+    // Business settings, document counters, saved report presets.
+    match /settings/{docId} {
+      allow read, write: if isOwner();
+    }
+    match /counters/{docId} {
+      allow read, write: if isOwner();
+    }
+
+    match /customers/{docId} {
+      allow read, write: if isOwner();
+    }
+
+    match /items/{docId} {
+      allow read, write: if isOwner();
+    }
+
+    match /invoices/{docId} {
+      allow read, write: if isOwner();
+    }
+
+    match /quotes/{docId} {
+      allow read, write: if isOwner();
+    }
+
+    match /orders/{docId} {
+      allow read, write: if isOwner();
+    }
+
+    match /payments/{docId} {
+      allow read, write: if isOwner();
+    }
+
+    match /recurring/{docId} {
+      allow read, write: if isOwner();
+    }
+
+    // Import batch bookkeeping (lets a half-finished migration be resumed).
+    match /imports/{docId} {
+      allow read, write: if isOwner();
+    }
+
+    // Anything not listed above is denied.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
