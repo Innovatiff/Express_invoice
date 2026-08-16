@@ -245,18 +245,34 @@ function renderChooseTarget() {
 // ---- Step 2 ---------------------------------------------------------------
 
 function renderChooseFile() {
-  const fileInput = el('input', { type: 'file', accept: '.csv,.txt,text/csv' });
+  // Deliberately unfiltered. Express Invoice keeps its live data in .dat files,
+  // and a picker that only offered .csv would hide exactly the files the owner
+  // is holding.
+  const fileInput = el('input', { type: 'file', accept: '.csv,.txt,.dat,.tsv,.tab,text/csv,text/plain' });
   const status = el('p', { class: 'text-small text-muted' });
+  const diagnosis = el('div', {});
 
   fileInput.addEventListener('change', async () => {
     const file = fileInput.files?.[0];
     if (!file) return;
     status.textContent = T('loading');
+    diagnosis.innerHTML = '';
+
     try {
-      const text = await readFileText(file);
+      const buffer = await readFileBuffer(file);
+      const info = sniffFormat(buffer);
+
+      if (!info.delimited) {
+        status.textContent = '';
+        renderUnreadable(diagnosis, file, info, buffer);
+        return;
+      }
+
+      const text = decodeBuffer(buffer, info.encoding);
       const delimiter = sniffDelimiter(text);
       const rows = parseCSV(text, delimiter);
-      if (!rows.length) throw new Error('empty');
+      if (!rows.length) throw new Error('The file has no rows in it.');
+
       state.fileName = file.name;
       state.headers = rows[0].map((h) => String(h).trim());
       state.rows = rows.slice(1);
@@ -265,7 +281,7 @@ function renderChooseFile() {
       renderStep();
     } catch (err) {
       console.error(err);
-      status.innerHTML = 'Could not read the file.';
+      status.innerHTML = esc(err.message || 'Could not read the file.');
     }
   });
 
@@ -280,39 +296,182 @@ function renderChooseFile() {
     ),
   )));
 
+  bodyHost.append(diagnosis);
+
   bodyHost.append(card(null, el('div', {},
-    el('p', { html:
-      '<strong>Cómo exportar desde Express Invoice</strong> ' +
-      'How to export from Express Invoice' }),
+    el('p', { html: '<strong>Getting your data out of Express Invoice</strong>' }),
+    el('p', { class: 'text-small text-muted', style: 'margin-top:6px', html:
+      'The <code>.dat</code> files in the Express Invoice program folder are its own '
+      + 'internal storage, not an export. If the old program still runs, exporting from '
+      + 'inside it is by far the shorter road:' }),
     el('ol', { style: 'margin:6px 0 0;padding-left:20px;line-height:1.9' },
-      el('li', { html: 'Open the list you want.' }),
-      el('li', { html: 'Use <em>File → Export</em>Use File → Export and choose CSV.' }),
-      el('li', { html: 'For invoices, include the detail lines.' }),
-      el('li', { html: 'Save the file and upload it here.' }),
+      el('li', { html: 'Open the list you want — Invoices, Customers, Items.' }),
+      el('li', { html: 'Choose <em>File → Export</em>, and pick CSV.' }),
+      el('li', { html: '<strong>For invoices, include the detail lines</strong>, or every invoice arrives as one lump.' }),
+      el('li', { html: 'Save the file, then load it here.' }),
     ),
     el('p', { class: 'text-small text-muted mt-1', html:
-      'Commas, semicolons or tabs all work — the separator is detected for you.' }),
+      'If the old program is gone and all you have are the <code>.dat</code> files, load one '
+      + 'anyway — this screen will identify what is inside it and tell you what to do next.' }),
   )));
 }
 
-function readFileText(file) {
+// ---------------------------------------------------------------------------
+// Reading whatever the owner actually has
+//
+// A .dat file is a name, not a format. Depending on the version it may be a
+// SQLite database, delimited text under an unfamiliar extension, or something
+// proprietary. So the bytes are sniffed and named: a file this screen cannot
+// use produces an explanation and a way forward, rather than "Could not read
+// the file", which tells the owner nothing they can act on.
+// ---------------------------------------------------------------------------
+
+function readFileBuffer(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onerror = () => reject(new Error('read failed'));
-    reader.onload = () => resolve(String(reader.result));
-    // Ten-year-old exports are frequently Windows-1252 rather than UTF-8; read
-    // as UTF-8 first and fall back if the result is full of replacement chars.
-    reader.readAsText(file, 'utf-8');
-  }).then((text) => {
-    if (!text.includes('�')) return text;
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onerror = () => reject(new Error('read failed'));
-      reader.onload = () => resolve(String(reader.result));
-      reader.readAsText(file, 'windows-1252');
-    });
+    reader.onerror = () => reject(new Error('The file could not be read.'));
+    reader.onload = () => resolve(reader.result);
+    reader.readAsArrayBuffer(file);
   });
 }
+
+const MAGIC = [
+  ['SQLite format 3', 'sqlite', 'a SQLite database'],
+  ['PK\u0003\u0004', 'zip', 'a Zip archive'],
+  ['%PDF', 'pdf', 'a PDF document'],
+  ['{\\rtf', 'rtf', 'an RTF document'],
+  ['\u00d0\u00cf\u0011\u00e0', 'ole', 'an old Microsoft Office file'],
+];
+
+/**
+ * Returns { id, label, decodable, delimited, encoding }.
+ * `delimited` is the only flag the wizard acts on; the rest is for explaining.
+ */
+function sniffFormat(buffer) {
+  const bytes = new Uint8Array(buffer);
+  if (!bytes.length) return { id: 'empty', label: 'an empty file', decodable: false, delimited: false };
+
+  const head = Array.from(bytes.slice(0, 16)).map((b) => String.fromCharCode(b)).join('');
+  for (const [magic, id, label] of MAGIC) {
+    if (head.startsWith(magic)) return { id, label, decodable: false, delimited: false };
+  }
+
+  // A byte-order mark settles the encoding outright, and UTF-16 is common in
+  // files written by older Windows software.
+  if (bytes[0] === 0xff && bytes[1] === 0xfe) {
+    return { id: 'text', label: 'text (UTF-16)', decodable: true, delimited: true, encoding: 'utf-16le' };
+  }
+  if (bytes[0] === 0xfe && bytes[1] === 0xff) {
+    return { id: 'text', label: 'text (UTF-16)', decodable: true, delimited: true, encoding: 'utf-16be' };
+  }
+
+  const start = head.replace(/^\ufeff/, '').trimStart();
+  if (start.startsWith('<?xml')) {
+    return { id: 'xml', label: 'XML', decodable: true, delimited: false, encoding: 'utf-8' };
+  }
+  if (start.startsWith('{') || start.startsWith('[')) {
+    return { id: 'json', label: 'JSON', decodable: true, delimited: false, encoding: 'utf-8' };
+  }
+
+  // Otherwise judge by how much of it is unprintable. A NUL byte weighs heavily
+  // because text files essentially never contain one.
+  const sample = bytes.slice(0, 65536);
+  let odd = 0;
+  for (const b of sample) {
+    if (b === 0) odd += 8;
+    else if (b < 32 && b !== 9 && b !== 10 && b !== 13) odd += 1;
+  }
+  if (odd / sample.length > 0.02) {
+    return { id: 'binary', label: 'a binary file', decodable: false, delimited: false };
+  }
+  return { id: 'text', label: 'plain text', decodable: true, delimited: true, encoding: 'utf-8' };
+}
+
+function decodeBuffer(buffer, encoding = 'utf-8') {
+  let text = new TextDecoder(encoding).decode(buffer);
+  // Ten-year-old Windows exports are frequently Windows-1252 rather than UTF-8.
+  if (encoding === 'utf-8' && text.includes('\ufffd')) {
+    text = new TextDecoder('windows-1252').decode(buffer);
+  }
+  return text.replace(/^\ufeff/, '');
+}
+
+/** The opening bytes, as something the owner can copy into a message. */
+function fingerprint(buffer, info) {
+  if (info.decodable) return decodeBuffer(buffer, info.encoding).slice(0, 700);
+  const bytes = new Uint8Array(buffer.slice(0, 128));
+  const lines = [];
+  for (let i = 0; i < bytes.length; i += 16) {
+    const chunk = Array.from(bytes.slice(i, i + 16));
+    const hex = chunk.map((b) => b.toString(16).padStart(2, '0')).join(' ').padEnd(47, ' ');
+    const chars = chunk.map((b) => (b >= 32 && b < 127 ? String.fromCharCode(b) : '.')).join('');
+    lines.push(`${String(i).padStart(4, '0')}  ${hex}  ${chars}`);
+  }
+  return lines.join('\n');
+}
+
+const NEXT_STEPS = {
+  sqlite: [
+    'Good news — a SQLite database is completely readable, and you do not need me to unpick it.',
+    'Install <strong>DB Browser for SQLite</strong> (free, sqlitebrowser.org), open this file with it, '
+    + 'and use <em>File → Export → Table(s) as CSV</em>. Export the customers, items, invoices and '
+    + 'payments tables, then load those CSVs here.',
+  ],
+  zip: [
+    'This is a Zip archive. Rename it to end in <code>.zip</code>, open it, and look inside.',
+    'If there are CSV files in there, load those instead.',
+  ],
+  xml: [
+    'This is XML — readable, but this screen expects rows and columns.',
+    'Send me the opening lines below and I will add a reader for this layout.',
+  ],
+  json: [
+    'This is JSON — readable, but this screen expects rows and columns.',
+    'Send me the opening lines below and I will add a reader for this layout.',
+  ],
+  pdf: ['That is a printed document rather than a data file. You want the data file it was printed from.'],
+  rtf: ['That is a word-processor document rather than a data file.'],
+  ole: ['That is an old Microsoft Office file. If it is a spreadsheet, open it and save as CSV.'],
+  empty: ['The file is empty — nothing was written to it.'],
+  binary: [
+    'This is Express Invoice\u2019s own storage format, which is not documented publicly.',
+    '<strong>If the old program still runs</strong>, the short road is to export CSVs from inside it '
+    + '(<em>File → Export</em>). That takes minutes and is exactly what this screen is built for.',
+    '<strong>If it does not</strong>, copy the fingerprint below and send it to me. Those opening bytes '
+    + 'are usually enough to identify the format, and I can build a converter for it.',
+  ],
+};
+
+function renderUnreadable(host, file, info, buffer) {
+  const steps = NEXT_STEPS[info.id] || NEXT_STEPS.binary;
+  const print = fingerprint(buffer, info);
+
+  const body = el('div', {},
+    el('p', { html:
+      `<strong>${esc(file.name)}</strong> is ${esc(info.label)}, `
+      + `${(file.size / 1024).toFixed(0)} KB. This screen reads rows and columns, so it cannot use it as it stands.` }),
+    ...steps.map((line) => el('p', { class: 'mt-1', html: line })),
+    el('p', { class: 'field-label mt-2', text: 'First bytes of the file' }),
+    el('div', { class: 'log-box', style: 'white-space:pre; font-size:11.5px', text: print }),
+    el('div', { class: 'form-row mt-1' },
+      el('button', {
+        class: 'btn btn-default btn-sm', type: 'button', text: 'Copy fingerprint',
+        onclick: async (e) => {
+          try {
+            await navigator.clipboard.writeText(`${file.name} — ${info.label}, ${file.size} bytes\n\n${print}`);
+            e.currentTarget.textContent = 'Copied';
+          } catch {
+            e.currentTarget.textContent = 'Select it by hand — the clipboard is blocked';
+          }
+        },
+      }),
+    ),
+  );
+
+  host.innerHTML = '';
+  host.append(card(null, body));
+}
+
 
 // ---- Step 3 ---------------------------------------------------------------
 

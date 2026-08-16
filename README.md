@@ -188,11 +188,27 @@ Import in this order, so each stage can find what the last one created:
 3. **Invoices** (then Quotes and Orders if you keep them)
 4. **Payments**
 
-### Getting the CSVs out of Express Invoice
+### Getting the data out of Express Invoice
 
-Open each list, then **File → Export** and choose CSV. For invoices, include
-the detail lines. Commas, semicolons and tabs all work — the separator is
-detected. So is Windows-1252 encoding, which older exports often use.
+**The `.dat` files in the Express Invoice program folder are its internal
+storage, not an export format.** If the old program still runs, export from
+inside it: open each list, then **File → Export**, and choose CSV. For invoices,
+include the detail lines, or every invoice arrives as a single lump. That path
+takes minutes.
+
+If the old program is gone and only the `.dat` files survive, load one into the
+import screen anyway. It reads the opening bytes and names what it found:
+
+| What it turns out to be | What happens |
+| --- | --- |
+| Delimited text under a `.dat` name | Imports normally — nothing else needed |
+| UTF-16 text (common from older Windows software) | Decoded and imported normally |
+| A SQLite database | Named as such, with the route out: open it in DB Browser for SQLite and export each table to CSV |
+| XML or JSON | Named, with an offer to add a reader for that layout |
+| A proprietary binary | Named, with a hex fingerprint of the opening bytes to send on for identification |
+
+Commas, semicolons and tabs all work — the separator is detected. So is
+Windows-1252 encoding, which older exports often use.
 
 ### What the importer guarantees
 

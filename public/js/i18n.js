@@ -287,7 +287,7 @@ export const DICT = {
   // ---- Import ----
   imp_title: 'Import from Express Invoice',
   imp_what: 'What you are importing',
-  imp_file: 'CSV File',
+  imp_file: 'Data File',
   imp_map: 'Column Mapping',
   imp_map_hint: 'Match each column in your file to a field. Leave anything that does not apply blank.',
   imp_preview: 'Preview',
