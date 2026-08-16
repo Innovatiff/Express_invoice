@@ -183,7 +183,6 @@ const state = {
   dayFirst: false,
   createMissingCustomers: true,
   duplicateMode: 'skip', // skip | update | create
-  dryRun: false,
 };
 
 const stepsHost = el('div', { class: 'steps' });
@@ -487,6 +486,18 @@ function renderPreview() {
     )));
   }
 
+  // How many of these will find the customer they belong to. Worth knowing
+  // BEFORE writing: an unmatched name silently becomes a second customer
+  // record, and at three thousand invoices that is a mess to unpick afterwards.
+  if (cfg.grouped || state.target === 'payments') {
+    const matchHost = el('div', {});
+    bodyHost.insertBefore(matchHost, bodyHost.lastChild);
+    renderCustomerMatch(matchHost, records).catch((err) => {
+      console.warn('Could not check customer matching', err);
+      matchHost.remove();
+    });
+  }
+
   bodyHost.append(el('div', { class: 'form-row mb-2' },
     el('button', { class: 'btn btn-default', type: 'button', html: L('act_back'),
       onclick: () => { state.step = 3; renderStep(); } }),
@@ -496,6 +507,60 @@ function renderPreview() {
       disabled: !records.length,
     }),
   ));
+}
+
+/**
+ * Counts how many records match a customer already on file, and names the ones
+ * that do not — so a "Perez, John" that should have been "John Perez" is caught
+ * here rather than discovered as a duplicate customer next week.
+ */
+async function renderCustomerMatch(host, records) {
+  const index = buildCustomerIndex(await loadAll('customers'));
+
+  let matched = 0;
+  const unmatched = new Map(); // name -> how many records use it
+  for (const record of records) {
+    if (matchCustomer(index, record)) {
+      matched += 1;
+    } else {
+      const name = String(record.customerName || '').trim() || '(blank)';
+      unmatched.set(name, (unmatched.get(name) || 0) + 1);
+    }
+  }
+
+  host.innerHTML = '';
+  if (!records.length) return;
+
+  const willCreate = state.createMissingCustomers;
+  const names = [...unmatched.entries()].sort((a, b) => b[1] - a[1]);
+
+  const body = el('div', {},
+    el('div', { class: 'stat-row', style: 'margin-bottom:12px' },
+      el('div', { class: 'stat stat--good' },
+        el('div', { class: 'stat-label', text: 'Matched to a customer on file' }),
+        el('div', { class: 'stat-value', text: String(matched) })),
+      el('div', { class: 'stat' + (unmatched.size ? ' stat--warn' : '') },
+        el('div', { class: 'stat-label',
+          text: willCreate ? 'New customers to be created' : 'Left without a customer' }),
+        el('div', { class: 'stat-value', text: String(unmatched.size) }),
+        el('div', { class: 'stat-sub',
+          text: `across ${records.length - matched} ${records.length - matched === 1 ? 'record' : 'records'}` })),
+    ),
+  );
+
+  if (names.length) {
+    body.append(el('p', { class: 'text-small text-muted mb-1', text:
+      willCreate
+        ? 'These names are not on file yet. If one is a spelling variant of an existing customer, go back, fix it in the CSV, and the invoices will attach to the record you already have.'
+        : 'These records will import without a customer attached, so they will not appear on that customer’s statement.' }));
+    body.append(el('div', { class: 'log-box' },
+      ...names.slice(0, 40).map(([name, count]) =>
+        el('div', { class: unmatched.size ? 'log-warn' : '', text: `${name}  ×${count}` })),
+      names.length > 40 ? el('div', { class: 'text-muted', text: `… +${names.length - 40} more` }) : null,
+    ));
+  }
+
+  host.append(card('customer', body));
 }
 
 function previewColumns() {
@@ -870,19 +935,11 @@ async function runImport(records) {
     }
 
     // ---- Customer lookup for documents and payments ----
-    let customersByName = new Map();
-    let customersByAccount = new Map();
+    let index = { byName: new Map(), byAccount: new Map() };
     if (cfg.grouped || state.target === 'payments') {
-      const customers = await loadAll('customers');
-      for (const c of customers) {
-        const nameKey = normalizeKey(c.name);
-        if (nameKey && !customersByName.has(nameKey)) customersByName.set(nameKey, c);
-        const companyKey = normalizeKey(c.company);
-        if (companyKey && !customersByName.has(companyKey)) customersByName.set(companyKey, c);
-        const accountKey = normalizeKey(c.account);
-        if (accountKey) customersByAccount.set(accountKey, c);
-      }
+      index = buildCustomerIndex(await loadAll('customers'));
     }
+    const { byName: customersByName, byAccount: customersByAccount } = index;
 
     // ---- Invoice lookup, so payments can be applied ----
     let invoicesByNumber = new Map();
@@ -913,9 +970,7 @@ async function runImport(records) {
         if (cfg.grouped || state.target === 'payments') {
           const accountKey = normalizeKey(record._customerAccount);
           const nameKey = normalizeKey(record.customerName);
-          let customer = (accountKey && customersByAccount.get(accountKey))
-            || (nameKey && customersByName.get(nameKey))
-            || null;
+          let customer = matchCustomer(index, record);
 
           if (!customer && state.createMissingCustomers && record.customerName) {
             const fresh = {
@@ -1054,4 +1109,37 @@ async function runImport(records) {
 
 function normalizeKey(value) {
   return String(value ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+// ---------------------------------------------------------------------------
+// Matching a document to a customer already on file.
+//
+// One implementation, used by both the preview and the import itself. If these
+// two ever disagreed, the preview would promise a match that the import then
+// failed to make — and quietly create a duplicate customer instead, which is
+// the single most expensive mistake this screen can make at three thousand
+// invoices.
+// ---------------------------------------------------------------------------
+
+export function buildCustomerIndex(customers) {
+  const byName = new Map();
+  const byAccount = new Map();
+  for (const c of customers) {
+    const nameKey = normalizeKey(c.name);
+    if (nameKey && !byName.has(nameKey)) byName.set(nameKey, c);
+    const companyKey = normalizeKey(c.company);
+    if (companyKey && !byName.has(companyKey)) byName.set(companyKey, c);
+    const accountKey = normalizeKey(c.account);
+    if (accountKey) byAccount.set(accountKey, c);
+  }
+  return { byName, byAccount };
+}
+
+/** Account number wins over name — it is the identifier that does not vary. */
+export function matchCustomer(index, record) {
+  const accountKey = normalizeKey(record._customerAccount);
+  const nameKey = normalizeKey(record.customerName);
+  return (accountKey && index.byAccount.get(accountKey))
+    || (nameKey && index.byName.get(nameKey))
+    || null;
 }

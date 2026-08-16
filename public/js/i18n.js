@@ -293,7 +293,6 @@ export const DICT = {
   imp_preview: 'Preview',
   imp_rows_found: 'Rows found',
   imp_run: 'Import Now',
-  imp_dry_run: 'Check Only',
   imp_done: 'Import Finished',
   imp_created: 'Created',
   imp_updated: 'Updated',
