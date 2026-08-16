@@ -1,12 +1,14 @@
 import {
-  $, el, esc, biInline, T, initShell, pageHeader, setPageTitle, money,
-  fmtDate, today, monthStart, monthEnd, loadAll, orderBy, where, limit,
-  onAction, spinner,
+  $, el, esc, L, T, initShell, pageHeader, setPageTitle, money, fmtDate,
+  today, monthStart, monthEnd, loadAll, orderBy, where, limit, onAction,
+  spinner,
 } from '../app.js';
 import {
   displayStatus,
 } from '../model.js';
-import { statusPill, dataTable, stat, card } from '../components.js';
+import {
+  statusPill, dataTable, stat, card,
+} from '../components.js';
 
 setPageTitle('nav_home');
 const { settings } = await initShell('dashboard.html');
@@ -42,7 +44,7 @@ try {
   console.error('Dashboard load failed', err);
   body.innerHTML = '';
   body.append(el('div', { class: 'empty' },
-    el('p', { html: 'No se pudieron cargar los datos. <span class="bi-en-inline">Could not load the data.</span>' }),
+    el('p', { html: 'Could not load the data.' }),
     el('p', { class: 'text-small text-muted', text: err.message || '' }),
   ));
   throw err;
@@ -95,11 +97,11 @@ if (recurringDue.length) {
   body.append(el('div', { class: 'card' },
     el('div', { class: 'card-body', style: 'display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap' },
       el('div', {},
-        el('strong', { html: biInline('rec_due') }),
+        el('strong', { html: L('rec_due') }),
         el('div', { class: 'text-small text-muted',
           text: recurringDue.map((r) => `${r.customerName} — ${fmtDate(r.nextDate)}`).slice(0, 4).join(' · ') }),
       ),
-      el('a', { class: 'btn btn-primary', href: 'recurring.html', html: biInline('rec_generate_now') }),
+      el('a', { class: 'btn btn-primary', href: 'recurring.html', html: L('rec_generate_now') }),
     ),
   ));
 }
@@ -127,7 +129,7 @@ twoCol.append(card('dash_recent_invoices',
   }),
   {
     flush: true,
-    headExtra: el('a', { class: 'btn btn-ghost btn-sm', href: 'invoices.html', html: biInline('all') }),
+    headExtra: el('a', { class: 'btn btn-ghost btn-sm', href: 'invoices.html', html: L('all') }),
   },
 ));
 
@@ -149,7 +151,7 @@ twoCol.append(card('dash_recent_payments',
   }),
   {
     flush: true,
-    headExtra: el('a', { class: 'btn btn-ghost btn-sm', href: 'payments.html', html: biInline('all') }),
+    headExtra: el('a', { class: 'btn btn-ghost btn-sm', href: 'payments.html', html: L('all') }),
   },
 ));
 
@@ -176,7 +178,7 @@ if (overdueList.length) {
     }),
     {
       flush: true,
-      headExtra: el('a', { class: 'btn btn-ghost btn-sm', href: 'reports.html?report=aged', html: biInline('rep_aged') }),
+      headExtra: el('a', { class: 'btn btn-ghost btn-sm', href: 'reports.html?report=aged', html: L('rep_aged') }),
     },
   ));
 }
@@ -184,13 +186,12 @@ if (overdueList.length) {
 if (!recentInvoices.length) {
   body.append(el('div', { class: 'card' }, el('div', { class: 'card-body' },
     el('div', { class: 'empty' },
-      el('p', { html: '<strong>Todavía no hay facturas. <span class="bi-en-inline">No invoices yet.</span></strong>' }),
+      el('p', { html: '<strong>No invoices yet.</strong>' }),
       el('p', { class: 'text-small', html:
-        '¿Viene de Express Invoice? Empiece por importar su historial. ' +
-        '<span class="bi-en-inline">Coming from Express Invoice? Start by importing your history.</span>' }),
+        'Coming from Express Invoice? Start by importing your history.' }),
       el('div', { class: 'quick-actions', style: 'justify-content:center' },
-        el('a', { class: 'btn btn-primary', href: 'import.html', html: biInline('nav_import') }),
-        el('a', { class: 'btn btn-default', href: 'settings.html', html: biInline('nav_settings') }),
+        el('a', { class: 'btn btn-primary', href: 'import.html', html: L('nav_import') }),
+        el('a', { class: 'btn btn-default', href: 'settings.html', html: L('nav_settings') }),
       ),
     ),
   )));

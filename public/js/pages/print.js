@@ -11,14 +11,18 @@
 // ---------------------------------------------------------------------------
 
 import {
-  $, el, esc, es, en, T, params, money, fmtDate, fmtQty, today, loadOne,
-  loadAll, getSettings, where, orderBy, limit, spinner,
+  $, el, esc, T, params, money, fmtDate, fmtQty, today, loadOne, loadAll,
+  getSettings, where, orderBy, limit, spinner,
 } from '../app.js';
-import { auth, onAuthStateChanged } from '../fb.js';
-import { isConfigured } from '../firebase-config.js';
 import {
-  DOC_TYPES, PAYMENT_METHODS, buildStatement, openingBalance, AGING_BUCKETS,
-  agingBucket,
+  auth, onAuthStateChanged,
+} from '../fb.js';
+import {
+  isConfigured,
+} from '../firebase-config.js';
+import {
+  DOC_TYPES, PAYMENT_METHODS, buildStatement, openingBalance,
+  AGING_BUCKETS, agingBucket,
 } from '../model.js';
 
 const root = $('#print-root');
@@ -42,11 +46,9 @@ const settings = await getSettings();
 
 root.append(spinner());
 
-/** "Español <span class=en>English</span>" — print.css inserts the slash. */
+/** A label, escaped for the markup these sheets are built from. */
 function L(key) {
-  const a = es(key);
-  const b = en(key);
-  return a === b ? esc(a) : `${esc(a)}<span class="en">${esc(b)}</span>`;
+  return esc(T(key));
 }
 
 // ===========================================================================
@@ -85,7 +87,7 @@ function titleBlock(titleKey, metaRows) {
   meta.append(tb);
 
   return el('div', { class: 'ds-title-block' },
-    el('div', { class: 'ds-title', html: `${esc(es(titleKey))}<span class="en">${esc(en(titleKey))}</span>` }),
+    el('div', { class: 'ds-title', text: T(titleKey) }),
     meta,
   );
 }
@@ -122,13 +124,13 @@ function toolbar(extra = []) {
   return el('div', { class: 'print-toolbar no-print' },
     el('button', {
       class: 'btn btn-primary', type: 'button',
-      html: `<span class="bi"><span class="bi-es">${esc(es('act_print'))}</span><span class="bi-en">${esc(en('act_print'))}</span></span>`,
+      html: L('act_print'),
       onclick: () => window.print(),
     }),
     ...extra,
     el('button', {
       class: 'btn btn-default', type: 'button',
-      html: `<span class="bi"><span class="bi-es">${esc(es('act_back'))}</span><span class="bi-en">${esc(en('act_back'))}</span></span>`,
+      html: L('act_back'),
       onclick: () => history.back(),
     }),
   );
@@ -137,7 +139,7 @@ function toolbar(extra = []) {
 function notFound() {
   root.innerHTML = '';
   root.append(el('div', { class: 'doc-sheet' },
-    el('p', { html: `${esc(es('msg_not_found'))} / ${esc(en('msg_not_found'))}` })));
+    el('p', { html: `${esc(T('msg_not_found'))}` })));
 }
 
 // ===========================================================================
@@ -152,7 +154,7 @@ async function renderDocument(type) {
   const sheet = el('div', { class: 'doc-sheet' });
 
   if (doc_.voided) {
-    sheet.append(el('div', { class: 'ds-void-stamp', text: `${es('st_void')} / ${en('st_void')}` }));
+    sheet.append(el('div', { class: 'ds-void-stamp', text: `${T('st_void')}` }));
   }
 
   // ---- Header ----
@@ -235,7 +237,7 @@ async function renderDocument(type) {
 
   const footer = doc_.footerMessage || settings.footerMessage;
   sheet.append(el('div', { class: 'ds-footer-msg', html:
-    footer ? esc(footer) : `${esc(es('thank_you'))} <span class="en">${esc(en('thank_you'))}</span>` }));
+    footer ? esc(footer) : `${esc(T('thank_you'))}` }));
 
   root.innerHTML = '';
   root.append(
@@ -243,12 +245,12 @@ async function renderDocument(type) {
       el('a', {
         class: 'btn btn-default',
         href: `${cfg.editPage}?id=${encodeURIComponent(p.id)}`,
-        html: `<span class="bi"><span class="bi-es">${esc(es('act_edit'))}</span><span class="bi-en">${esc(en('act_edit'))}</span></span>`,
+        html: L('act_edit'),
       }),
     ]),
     sheet,
   );
-  document.title = `${es(cfg.titleKey)} ${doc_.number || ''} — ${settings.businessName || T('app_name')}`;
+  document.title = `${T(cfg.titleKey)} ${doc_.number || ''} — ${settings.businessName || T('app_name')}`;
 }
 
 // ===========================================================================
@@ -313,19 +315,19 @@ async function renderPayment() {
   ));
 
   sheet.append(el('div', { class: 'ds-footer-msg', html:
-    `${esc(es('thank_you'))} <span class="en">${esc(en('thank_you'))}</span>` }));
+    `${esc(T('thank_you'))}` }));
 
   root.innerHTML = '';
   root.append(
     toolbar([
       el('a', {
         class: 'btn btn-default', href: `payment.html?id=${encodeURIComponent(p.id)}`,
-        html: `<span class="bi"><span class="bi-es">${esc(es('act_edit'))}</span><span class="bi-en">${esc(en('act_edit'))}</span></span>`,
+        html: L('act_edit'),
       }),
     ]),
     sheet,
   );
-  document.title = `${es('doc_receipt')} ${pay.number || ''} — ${settings.businessName || T('app_name')}`;
+  document.title = `${T('doc_receipt')} ${pay.number || ''} — ${settings.businessName || T('app_name')}`;
 }
 
 // ===========================================================================
@@ -380,7 +382,7 @@ async function renderStatement() {
   tb.append(el('tr', {},
     el('td', { text: from ? fmtDate(from) : '' }),
     el('td', { text: '' }),
-    el('td', { html: `<em>${esc(es('balance'))} ${esc(es('date_from'))}<span class="en">Balance forward</span></em>` }),
+    el('td', { html: `<em>${esc('Balance forward')}</em>` }),
     el('td', { class: 'n', text: '' }),
     el('td', { class: 'n', text: '' }),
     el('td', { class: 'n', text: money(opening) }),
@@ -391,8 +393,8 @@ async function renderStatement() {
       el('td', { text: fmtDate(r.date) }),
       el('td', { class: 'ds-code', text: r.ref || '' }),
       el('td', { html: r.kind === 'invoice'
-        ? `${esc(es('doc_invoice'))}<span class="en">${esc(en('doc_invoice'))}</span>${r.description ? ' — ' + esc(r.description) : ''}`
-        : `${esc(es('doc_payment'))}<span class="en">${esc(en('doc_payment'))}</span>${r.description ? ' — ' + esc(r.description) : ''}` }),
+        ? `${esc(T('doc_invoice'))}${r.description ? ' — ' + esc(r.description) : ''}`
+        : `${esc(T('doc_payment'))}${r.description ? ' — ' + esc(r.description) : ''}` }),
       el('td', { class: 'n', text: r.chargeCents ? money(r.chargeCents) : '' }),
       el('td', { class: 'n', text: r.creditCents ? money(r.creditCents) : '' }),
       el('td', { class: 'n', text: money(opening + r.balanceCents) }),
@@ -427,19 +429,19 @@ async function renderStatement() {
   ));
 
   sheet.append(el('div', { class: 'ds-footer-msg', html:
-    `${esc(es('thank_you'))} <span class="en">${esc(en('thank_you'))}</span>` }));
+    `${esc(T('thank_you'))}` }));
 
   root.innerHTML = '';
   root.append(
     toolbar([
       el('a', {
         class: 'btn btn-default', href: `customer.html?id=${encodeURIComponent(p.customer)}`,
-        html: `<span class="bi"><span class="bi-es">${esc(es('customer'))}</span><span class="bi-en">${esc(en('customer'))}</span></span>`,
+        html: L('customer'),
       }),
     ]),
     sheet,
   );
-  document.title = `${es('doc_statement')} — ${customer.name || ''}`;
+  document.title = `${T('doc_statement')} — ${customer.name || ''}`;
 }
 
 // ===========================================================================
@@ -455,7 +457,7 @@ try {
   console.error('Print render failed', err);
   root.innerHTML = '';
   root.append(el('div', { class: 'doc-sheet' },
-    el('p', { text: 'No se pudo generar el documento. / Could not build the document.' }),
+    el('p', { text: 'Could not build the document.' }),
     el('pre', { text: err.message || String(err) }),
   ));
 }

@@ -1,10 +1,11 @@
 import {
-  $, el, esc, biInline, es, en,
-  initShell, pageHeader, setPageTitle,
-  money, fmtQty, loadAll, orderBy,
-  onAction, matchesSearch, debounce, toCSV, downloadFile, toast, spinner, today,
+  $, el, esc, L, T, initShell, pageHeader, setPageTitle, money, fmtQty,
+  loadAll, orderBy, onAction, matchesSearch, debounce, toCSV, downloadFile,
+  toast, spinner, today,
 } from '../app.js';
-import { dataTable, sortRows, selectEl } from '../components.js';
+import {
+  dataTable, sortRows, selectEl,
+} from '../components.js';
 
 setPageTitle('nav_items');
 await initShell('items.html');
@@ -22,7 +23,7 @@ let filtered = [];
 
 const searchInput = el('input', {
   type: 'search', id: 'list-search',
-  placeholder: `${es('act_search')} / ${en('act_search')}`,
+  placeholder: `${T('act_search')}`,
 });
 searchInput.addEventListener('input', debounce(() => { state.search = searchInput.value; apply(); }, 160));
 
@@ -37,11 +38,11 @@ const countLabel = el('span', { class: 'result-count' });
 page.append(el('div', { class: 'card' },
   el('div', { class: 'filters' },
     el('div', { class: 'field' },
-      el('label', { class: 'field-label', html: biInline('act_search') }), searchInput),
+      el('label', { class: 'field-label', html: L('act_search') }), searchInput),
     el('div', { class: 'field' },
-      el('label', { class: 'field-label', html: biInline('item_category') }), categorySelect),
+      el('label', { class: 'field-label', html: L('item_category') }), categorySelect),
     el('label', { class: 'check' }, inactiveBox,
-      el('span', { html: 'Mostrar inactivos <span class="bi-en-inline">Show inactive</span>' })),
+      el('span', { html: 'Show inactive' })),
     el('div', { class: 'spacer' }),
     countLabel,
   ),
@@ -55,7 +56,7 @@ try {
   items = await loadAll('items', orderBy('code'));
 } catch (err) {
   console.error(err);
-  toast('No se pudo cargar. <span class="bi-en-inline">Could not load.</span>', 'err');
+  toast('Could not load.', 'err');
 }
 
 // Fill the category filter from what is actually on file.
@@ -130,20 +131,20 @@ function render() {
 
 function exportCsv() {
   const header = [
-    `${es('item_code')} / ${en('item_code')}`,
-    `${es('item_description')} / ${en('item_description')}`,
-    `${es('item_category')} / ${en('item_category')}`,
-    `${es('item_unit')} / ${en('item_unit')}`,
-    `${es('item_cost')} / ${en('item_cost')}`,
-    `${es('item_price')} / ${en('item_price')}`,
-    `${es('item_taxable')} / ${en('item_taxable')}`,
-    `${es('item_qty_stock')} / ${en('item_qty_stock')}`,
+    `${T('item_code')}`,
+    `${T('item_description')}`,
+    `${T('item_category')}`,
+    `${T('item_unit')}`,
+    `${T('item_cost')}`,
+    `${T('item_price')}`,
+    `${T('item_taxable')}`,
+    `${T('item_qty_stock')}`,
   ];
   const body = filtered.map((i) => [
     i.code, i.description, i.category, i.unit,
     (Number(i.costCents) || 0) / 100,
     (Number(i.priceCents) || 0) / 100,
-    i.taxable === false ? 'No' : 'Sí / Yes',
+    i.taxable === false ? 'No' : 'Yes',
     i.trackStock ? (Number(i.qtyInStock) || 0) : '',
   ]);
   downloadFile(`articulos-items-${today()}.csv`, '﻿' + toCSV([header, ...body]));

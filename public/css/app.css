@@ -6,10 +6,8 @@
    buttons across the top of every screen, dense data tables, and a totals
    block anchored bottom-right of the document editor.
 
-   Every visible label is bilingual. `.bi` stacks Spanish over English;
-   `.bi-en-inline` puts English after Spanish on a single line. Both patterns
-   exist because a stacked label is right for a form field and wrong for a
-   sentence.
+   Labels come from js/i18n.js rather than being written into the markup, so a
+   wording change lands in one place.
    ========================================================================== */
 
 :root {
@@ -71,32 +69,6 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; line-height: 1.25; }
 p { margin: 0 0 .6em; }
 a { color: var(--primary); text-decoration: none; }
 a:hover { text-decoration: underline; }
-
-/* ==========================================================================
-   Bilingual labels
-   ========================================================================== */
-
-.bi {
-  display: inline-flex;
-  flex-direction: column;
-  line-height: 1.12;
-  text-align: inherit;
-}
-.bi-es { font-weight: inherit; }
-.bi-en {
-  font-size: .78em;
-  font-weight: 400;
-  color: var(--muted);
-  letter-spacing: .005em;
-}
-.bi-en-inline {
-  color: var(--muted);
-  font-weight: 400;
-  font-size: .86em;
-}
-.bi-en-inline::before { content: "/ "; }
-
-h1 .bi-en-inline, h2 .bi-en-inline { font-size: .62em; }
 
 /* ==========================================================================
    Top bar
@@ -210,7 +182,6 @@ h1 .bi-en-inline, h2 .bi-en-inline { font-size: .62em; }
   text-transform: uppercase;
   color: var(--muted);
 }
-.nav-group .bi-en-inline { font-size: 1em; text-transform: none; letter-spacing: 0; }
 
 .nav-link {
   display: flex;
@@ -227,7 +198,6 @@ h1 .bi-en-inline, h2 .bi-en-inline { font-size: .62em; }
   border-left-color: var(--primary);
   color: var(--primary-dark);
 }
-.nav-link.is-active .bi-en { color: #6d8cb8; }
 .nav-link--muted { color: var(--text-2); }
 
 .nav-icon {
@@ -294,11 +264,9 @@ h1 .bi-en-inline, h2 .bi-en-inline { font-size: .62em; }
 
 .btn-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
 .btn-primary:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
-.btn-primary .bi-en { color: rgba(255, 255, 255, .75); }
 
 .btn-danger { background: var(--red); border-color: var(--red); color: #fff; }
 .btn-danger:hover { background: #96201a; }
-.btn-danger .bi-en { color: rgba(255, 255, 255, .78); }
 
 .btn-ghost { background: transparent; border-color: transparent; font-weight: 500; }
 .btn-ghost:hover { background: var(--surface-3); }
@@ -430,7 +398,6 @@ legend {
   text-transform: uppercase;
   color: var(--muted);
 }
-legend .bi-en-inline { text-transform: none; letter-spacing: 0; font-size: 1em; }
 
 /* ==========================================================================
    Tables
@@ -495,7 +462,6 @@ th.sort-desc::after { content: "▼"; font-size: 8px; }
   white-space: nowrap;
   line-height: 1.5;
 }
-.pill .bi-en-inline { font-size: .9em; }
 .pill-paid, .pill-accepted, .pill-fulfilled { background: var(--green-light); color: var(--green); }
 .pill-unpaid, .pill-open, .pill-sent { background: var(--slate-light); color: var(--slate); }
 .pill-partial, .pill-invoiced, .pill-converted { background: var(--primary-light); color: var(--primary-dark); }
@@ -670,7 +636,6 @@ th.sort-desc::after { content: "▼"; font-size: 8px; }
   box-shadow: var(--shadow-sm);
 }
 .stat-label { font-size: 12px; font-weight: 600; color: var(--text-2); }
-.stat-label .bi-en-inline { font-size: .95em; }
 .stat-value {
   margin-top: 5px;
   font-size: 25px;
@@ -723,7 +688,6 @@ th.sort-desc::after { content: "▼"; font-size: 8px; }
   box-shadow: var(--shadow-lg);
   animation: toast-in .18s ease-out;
 }
-.toast .bi-en-inline { color: rgba(255, 255, 255, .7); }
 .toast--err { background: var(--red); }
 .toast--warn { background: var(--amber); }
 .toast.is-leaving { opacity: 0; transition: opacity .2s; }

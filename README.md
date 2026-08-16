@@ -1,4 +1,4 @@
-# Facturación Express / Express Invoicing
+# Express Invoicing
 
 A replacement for NCH Express Invoice, built for a single cellphone retail shop.
 
@@ -10,8 +10,6 @@ runs in a browser instead of on one Windows machine.
 
 - **Single user.** One Firebase Auth account, the shop owner. No roles, no
   permission matrix, no multi-user console.
-- **Bilingual, always.** Every label on screen and on paper carries Spanish and
-  English at once, Spanish first. This is not a language switcher.
 - **No build step.** Plain HTML, CSS and ES modules served as-is. One HTML file
   per screen, a shared `app.css` and `app.js`.
 
@@ -62,8 +60,8 @@ That publishes hosting, the security rules and the Firestore indexes together.
 
 ### 4. Lock the database to your account
 
-Sign in, open **Configuración / Settings**, and copy the UID shown at the
-bottom. Paste it into `ownerUid()` in `firestore.rules`, then:
+Sign in, open **Settings**, and copy the UID shown at the bottom. Paste it into
+`ownerUid()` in `firestore.rules`, then:
 
 ```bash
 firebase deploy --only firestore:rules
@@ -85,15 +83,15 @@ python3 -m http.server 5000 --directory public
 
 ## Migrating from Express Invoice
 
-**Importar / Import** is a four-step wizard: choose what you are importing,
-upload the CSV, confirm the column mapping, review and run.
+**Import** is a four-step wizard: choose what you are importing, upload the CSV,
+confirm the column mapping, review and run.
 
 Import in this order, so each stage can find what the last one created:
 
-1. **Clientes / Customers**
-2. **Artículos / Items**
-3. **Facturas / Invoices** (then Cotizaciones and Pedidos if you keep them)
-4. **Pagos / Payments**
+1. **Customers**
+2. **Items**
+3. **Invoices** (then Quotes and Orders if you keep them)
+4. **Payments**
 
 ### Getting the CSVs out of Express Invoice
 
@@ -114,8 +112,10 @@ Other behaviour worth knowing:
 - **Multi-line invoices** must repeat the invoice number on every row. Rows are
   grouped by that number; a blank number on a row with line content is treated
   as a continuation of the invoice above it.
-- **Column mapping is guessed** from the header names in both languages, and
-  every guess is shown for you to correct before anything is written.
+- **Column mapping is guessed** from the header names, and every guess is shown
+  for you to correct before anything is written. The synonym lists include some
+  Spanish header spellings — not as UI text, but so an older export in that
+  language still auto-maps instead of needing 25 columns set by hand.
 - **Dates** are read in almost any format. If your export is day/month/year,
   tick the box on the preview step — ambiguous dates like `03/05/2024` need it.
 - **Duplicates**: choose skip, update, or always-create. Skip is the default, so
@@ -126,14 +126,13 @@ Other behaviour worth knowing:
   number is set past the highest one in the file.
 
 Take a backup first if the database already has data:
-**Configuración / Settings → Respaldo Completo (JSON)**.
+**Settings → Full Backup (JSON)**.
 
 ---
 
 ## Keyboard shortcuts
 
-The full list lives on the **Atajos de Teclado / Keyboard Shortcuts** screen, or
-press `?`.
+The full list lives on the **Keyboard Shortcuts** screen, or press `?`.
 
 | Key | Action |
 | --- | --- |
@@ -172,7 +171,7 @@ public/
   js/
     fb.js          the only file that imports the Firebase SDK
     firebase-config.js
-    i18n.js        the bilingual dictionary
+    i18n.js        every visible label, in one dictionary
     app.js         auth, chrome, money, dates, shortcuts, Firestore helpers
     model.js       document totals, statuses, payments, statements
     components.js  autocomplete, tables, cards, status pills
@@ -199,9 +198,10 @@ due date. A stored `overdue` would be wrong the next morning.
 copied onto the invoice when it is created. Editing a customer later never
 rewrites paperwork that has already gone out the door.
 
-**Bilingual labels** come from `i18n.js`. `bi(key)` stacks Spanish over English
-for form labels and table headers; `biInline(key)` puts them on one line for
-sentences and buttons. Printed documents use their own inline form.
+**Labels live in `i18n.js`, not in the markup.** `T(key)` returns the plain
+string for attributes and text nodes; `L(key)` returns it escaped for the places
+screens build markup as strings. Changing a word is one edit, and it lands on
+screen, on paper and in CSV exports at the same time.
 
 ### Data model
 
@@ -244,9 +244,9 @@ invoice is saved) because Express Invoice had one. It is not synced anywhere.
 ## Notes on a few decisions
 
 **Email.** Without a backend there is no way to send mail, so the Email button
-opens your mail client with the customer's address and a bilingual message
-filled in. Print to PDF and attach it. Adding real sending would mean a Cloud
-Function and a mail provider.
+opens your mail client with the customer's address and a message filled in.
+Print to PDF and attach it. Adding real sending would mean a Cloud Function and
+a mail provider.
 
 **Recurring invoices never bill on their own.** There is no scheduler; the
 dashboard shows what is due and you press Generate. For a one-person shop,

@@ -1,7 +1,9 @@
 import {
-  $, el, esc, biInline, es, en, initShell, pageHeader, setPageTitle,
+  $, el, esc, L, T, initShell, pageHeader, setPageTitle,
 } from '../app.js';
-import { card } from '../components.js';
+import {
+  card,
+} from '../components.js';
 
 setPageTitle('nav_shortcuts');
 await initShell('shortcuts.html');
@@ -11,7 +13,7 @@ const page = $('#page');
 page.append(pageHeader('nav_shortcuts', [], ''));
 
 page.append(el('p', { class: 'text-muted mb-2',
-  html: `${es('sc_hint')} <span class="bi-en-inline">${en('sc_hint')}</span>` }));
+  html: `${T('sc_hint')}` }));
 
 /**
  * Ctrl+N is missing on purpose: browsers keep it for "new window" and will not
@@ -79,7 +81,7 @@ for (const group of GROUPS) {
   for (const [keys, labelKey] of group.rows) {
     tb.append(el('tr', {},
       el('td', { html: keys.map((k) => `<kbd>${esc(k)}</kbd>`).join(' <span class="text-muted">+</span> ') }),
-      el('td', { html: biInline(labelKey) }),
+      el('td', { html: L(labelKey) }),
     ));
   }
   table.append(tb);
@@ -91,20 +93,15 @@ page.append(grid);
 // A short note on the grid keys, which are the ones that carry the most muscle
 // memory over from the desktop app.
 page.append(card(null, el('div', {},
-  el('p', { html:
-    '<strong>En la tabla de líneas</strong> <span class="bi-en-inline">In the line grid</span>' }),
+  el('p', { html: '<strong>In the line grid</strong>' }),
   el('ul', { style: 'margin:6px 0 0;padding-left:20px;line-height:1.8' },
     el('li', { html:
-      '<kbd>Enter</kbd> salta a la línea siguiente y crea una nueva si está en la última. ' +
-      '<span class="bi-en-inline">Enter moves to the next line, adding one when you are on the last.</span>' }),
+      '<kbd>Enter</kbd> moves to the next line, adding one when you are on the last.' }),
     el('li', { html:
-      'Escriba el código del artículo y elija de la lista: descripción y precio se llenan solos. ' +
-      '<span class="bi-en-inline">Type an item code and pick from the list — description and price fill themselves in.</span>' }),
+      'Type an item code and pick from the list — description and price fill themselves in.' }),
     el('li', { html:
-      'El IMEI y el número de serie van en la descripción, como texto libre. ' +
-      '<span class="bi-en-inline">IMEI and serial numbers go in the description as free text.</span>' }),
+      'IMEI and serial numbers go in the description as free text.' }),
     el('li', { html:
-      '<kbd>Alt</kbd>+<kbd>↑</kbd> / <kbd>Alt</kbd>+<kbd>↓</kbd> mueven la línea de lugar. ' +
-      '<span class="bi-en-inline">Alt+Up / Alt+Down reorder the line.</span>' }),
+      '<kbd>Alt</kbd>+<kbd>↑</kbd> and <kbd>Alt</kbd>+<kbd>↓</kbd> reorder the line.' }),
   ),
 )));

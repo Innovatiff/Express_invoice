@@ -6,8 +6,8 @@
    number top-right, Bill To beneath, the ruled line-item table, then the
    totals stack anchored bottom-right, terms and notes below that.
 
-   Labels are bilingual here too, Spanish first, English following in a lighter
-   weight — on paper the two sit on one line to keep the sheet from growing.
+   Labels come from js/i18n.js, so the wording on paper always matches the
+   wording on screen.
    ========================================================================== */
 
 .doc-sheet {
@@ -30,13 +30,6 @@
   box-shadow: 0 3px 18px rgba(20, 33, 51, .2);
   box-sizing: border-box;
 }
-
-.doc-sheet .en {
-  color: var(--ink-3);
-  font-weight: 400;
-  font-size: .84em;
-}
-.doc-sheet .en::before { content: " / "; }
 
 /* ---- Header ---- */
 
@@ -62,14 +55,6 @@
   line-height: 1;
   text-transform: uppercase;
 }
-.ds-title .en {
-  display: block;
-  font-size: .42em;
-  letter-spacing: .1em;
-  margin-top: 3px;
-}
-.ds-title .en::before { content: ""; }
-
 .ds-meta {
   margin-top: 11px;
   border-collapse: collapse;
@@ -110,7 +95,6 @@
   margin-bottom: 5px;
   border-bottom: 1px solid var(--rule);
 }
-.ds-party-label .en { text-transform: none; letter-spacing: .02em; font-size: .92em; }
 .ds-party-body { white-space: pre-line; font-size: 10pt; line-height: 1.4; }
 .ds-party-name { font-weight: 700; }
 
@@ -133,14 +117,7 @@
   background: #2b2b2b;
   border: 1px solid #2b2b2b;
 }
-.ds-lines thead th .en {
-  display: block;
-  color: rgba(255, 255, 255, .72);
-  text-transform: none;
-  letter-spacing: 0;
-  font-size: .88em;
-}
-.ds-lines thead th .en::before { content: ""; }
+
 .ds-lines tbody td {
   padding: 5px 7px;
   border: 1px solid var(--rule);
@@ -212,7 +189,6 @@
   color: var(--ink-2);
   margin-bottom: 2px;
 }
-.ds-block-label .en { text-transform: none; letter-spacing: .02em; }
 .ds-block-body { white-space: pre-line; font-size: 9.5pt; line-height: 1.45; }
 
 .ds-footer-msg {
@@ -262,7 +238,6 @@
   letter-spacing: .06em;
   color: var(--ink-2);
 }
-.ds-stmt-box-label .en { text-transform: none; letter-spacing: 0; }
 .ds-stmt-box-value {
   font-size: 12pt;
   font-weight: 700;

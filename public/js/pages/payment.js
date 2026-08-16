@@ -1,16 +1,20 @@
 import {
-  $, el, esc, biInline, T, es, en, initShell, pageHeader, setPageTitle,
-  params, money, moneyInput, parseMoney, fmtDate, today, loadOne, loadAll,
-  saveRecord, removeRecord, nextNumber, peekCounter, setCounter,
-  formatNumber, numericPart, where, orderBy, limit, onAction, toast,
-  toastKey, confirmDialog, trackDirty, spinner,
+  $, el, esc, L, T, initShell, pageHeader, setPageTitle, params, money,
+  moneyInput, parseMoney, fmtDate, today, loadOne, loadAll, saveRecord,
+  removeRecord, nextNumber, peekCounter, setCounter, formatNumber,
+  numericPart, where, orderBy, limit, onAction, toast, toastKey,
+  confirmDialog, trackDirty, spinner,
 } from '../app.js';
 import {
   blankPayment, PAYMENT_METHODS, paymentTotals, allocationDeltas,
   applyInvoiceDeltas, autoAllocate,
 } from '../model.js';
-import { loadCustomers, findCustomer } from '../store.js';
-import { field, card, selectEl, customerAutocomplete, statusPill } from '../components.js';
+import {
+  loadCustomers, findCustomer,
+} from '../store.js';
+import {
+  field, card, selectEl, customerAutocomplete, statusPill,
+} from '../components.js';
 
 setPageTitle('doc_payment');
 const { settings } = await initShell('payments.html');
@@ -37,7 +41,7 @@ if (isNew) {
 } else {
   const loaded = await loadOne('payments', p.id);
   if (!loaded) {
-    page.append(el('div', { class: 'empty', html: `<p>${biInline('msg_not_found')}</p>` }));
+    page.append(el('div', { class: 'empty', html: `<p>${L('msg_not_found')}</p>` }));
     throw new Error('payment not found');
   }
   record = { ...blankPayment(), ...loaded, id: p.id };
@@ -121,11 +125,11 @@ const summaryHost = el('div', { class: 'card-foot' });
 
 page.append(el('div', { class: 'card' },
   el('div', { class: 'card-head' },
-    el('h2', { html: biInline('pay_applied_to') }),
+    el('h2', { html: L('pay_applied_to') }),
     el('div', { class: 'form-row' },
       el('button', {
         class: 'btn btn-default btn-sm', type: 'button',
-        html: biInline('act_apply'),
+        html: L('act_apply'),
         title: T('pay_apply_hint'),
         onclick: () => {
           record.allocations = autoAllocate(record.amountCents, openInvoices.map((inv) => ({
@@ -137,7 +141,7 @@ page.append(el('div', { class: 'card' },
       }),
       el('button', {
         class: 'btn btn-ghost btn-sm', type: 'button',
-        html: biInline('act_clear'),
+        html: L('act_clear'),
         onclick: () => { record.allocations = []; markDirty(); renderAllocations(); },
       }),
     ),
@@ -155,7 +159,7 @@ async function loadOpenInvoices() {
   allocHost.append(spinner());
   if (!record.customerId) {
     allocHost.innerHTML = '';
-    allocHost.append(el('div', { class: 'empty', html: `<p>${biInline('msg_pick_customer')}</p>` }));
+    allocHost.append(el('div', { class: 'empty', html: `<p>${L('msg_pick_customer')}</p>` }));
     refreshSummary();
     return;
   }
@@ -169,7 +173,7 @@ async function loadOpenInvoices() {
   } catch (err) {
     console.error(err);
     openInvoices = [];
-    toast('No se pudieron cargar las facturas. <span class="bi-en-inline">Could not load invoices.</span>', 'err');
+    toast('Could not load invoices.', 'err');
   }
 
   // Arriving from an invoice: preselect it and offer the full balance.
@@ -216,25 +220,25 @@ function renderAllocations() {
   allocHost.innerHTML = '';
 
   if (!record.customerId) {
-    allocHost.append(el('div', { class: 'empty', html: `<p>${biInline('msg_pick_customer')}</p>` }));
+    allocHost.append(el('div', { class: 'empty', html: `<p>${L('msg_pick_customer')}</p>` }));
     refreshSummary();
     return;
   }
   if (!openInvoices.length) {
     allocHost.append(el('div', { class: 'empty', html:
-      '<p>Este cliente no tiene facturas abiertas. <span class="bi-en-inline">This customer has no open invoices.</span></p>' }));
+      '<p>This customer has no open invoices.</p>' }));
     refreshSummary();
     return;
   }
 
   const table = el('table', { class: 'data' });
   table.append(el('thead', {}, el('tr', {},
-    el('th', { html: biInline('invoice_number') }),
-    el('th', { html: biInline('date') }),
-    el('th', { html: biInline('due_date') }),
-    el('th', { class: 'num', html: biInline('total') }),
-    el('th', { class: 'num', html: biInline('balance_due') }),
-    el('th', { class: 'num', html: biInline('amount') }),
+    el('th', { html: L('invoice_number') }),
+    el('th', { html: L('date') }),
+    el('th', { html: L('due_date') }),
+    el('th', { class: 'num', html: L('total') }),
+    el('th', { class: 'num', html: L('balance_due') }),
+    el('th', { class: 'num', html: L('amount') }),
     el('th', { class: 'col-narrow' }),
   )));
 
@@ -264,7 +268,7 @@ function renderAllocations() {
       el('td', { class: 'col-narrow' },
         el('button', {
           class: 'btn btn-ghost btn-sm', type: 'button',
-          html: biInline('act_pay_full'),
+          html: L('act_pay_full'),
           onclick: () => { setAllocation(inv, due); input.value = moneyInput(due); },
         })),
     ));
@@ -284,13 +288,13 @@ function refreshSummary() {
 
   summaryHost.append(el('div', { class: 'form-row', style: 'justify-content:flex-end;gap:26px' },
     el('div', {},
-      el('div', { class: 'stat-label', html: biInline('pay_amount_received') }),
+      el('div', { class: 'stat-label', html: L('pay_amount_received') }),
       el('div', { style: 'font-size:17px;font-weight:700' , text: money(totals.amountCents) })),
     el('div', {},
-      el('div', { class: 'stat-label', html: biInline('pay_applied_to') }),
+      el('div', { class: 'stat-label', html: L('pay_applied_to') }),
       el('div', { style: 'font-size:17px;font-weight:700', text: money(totals.appliedCents) })),
     el('div', {},
-      el('div', { class: 'stat-label', html: biInline(over ? 'msg_over_applied' : 'pay_unapplied') }),
+      el('div', { class: 'stat-label', html: L(over ? 'msg_over_applied' : 'pay_unapplied') }),
       el('div', {
         class: over ? 'text-red' : credit ? 'text-green' : '',
         style: 'font-size:17px;font-weight:700',
@@ -300,7 +304,7 @@ function refreshSummary() {
 
   if (credit) {
     summaryHost.append(el('p', { class: 'text-small text-muted mt-1', style: 'text-align:right',
-      html: `${es('pay_apply_hint')} <span class="bi-en-inline">${en('pay_apply_hint')}</span>` }));
+      html: `${T('pay_apply_hint')}` }));
   }
 }
 
@@ -324,13 +328,13 @@ async function save({ stay = false, then = null } = {}) {
 
   const totals = paymentTotals(record);
   if (totals.amountCents <= 0) {
-    toast('Escriba el monto recibido. <span class="bi-en-inline">Enter the amount received.</span>', 'warn');
+    toast('Enter the amount received.', 'warn');
     amountInput.focus();
     return null;
   }
   if (totals.unappliedCents < 0) {
     const ok = await confirmDialog(
-      `${biInline('msg_over_applied')}<br>` +
+      `${L('msg_over_applied')}<br>` +
       `${T('pay_applied_to')}: <strong>${esc(money(totals.appliedCents))}</strong> · ` +
       `${T('pay_amount_received')}: <strong>${esc(money(totals.amountCents))}</strong>`,
       { danger: true },
@@ -367,7 +371,7 @@ async function save({ stay = false, then = null } = {}) {
     return id;
   } catch (err) {
     console.error('Payment save failed', err);
-    toast(`No se pudo guardar el pago. <span class="bi-en-inline">Could not save the payment.</span>` +
+    toast(`Could not save the payment.` +
       `<br><small>${esc(err.message || '')}</small>`, 'err', 8000);
     return null;
   }
@@ -375,9 +379,8 @@ async function save({ stay = false, then = null } = {}) {
 
 async function destroy() {
   const ok = await confirmDialog(
-    `${biInline('msg_confirm_delete')}<br><strong>${esc(record.number)}</strong> — ${esc(money(record.amountCents))}` +
-    '<br><span class="text-small text-muted">Los saldos de las facturas se restaurarán. ' +
-    '<span class="bi-en-inline">Invoice balances will be restored.</span></span>',
+    `${L('msg_confirm_delete')}<br><strong>${esc(record.number)}</strong> — ${esc(money(record.amountCents))}` +
+    '<br><span class="text-small text-muted">Invoice balances will be restored.</span>',
     { danger: true, okKey: 'act_delete' },
   );
   if (!ok) return;
@@ -389,7 +392,7 @@ async function destroy() {
     location.href = 'payments.html';
   } catch (err) {
     console.error(err);
-    toast('No se pudo eliminar. <span class="bi-en-inline">Could not delete.</span>', 'err');
+    toast('Could not delete.', 'err');
   }
 }
 

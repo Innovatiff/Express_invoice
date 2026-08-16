@@ -1,10 +1,14 @@
 import {
-  auth, signInWithEmailAndPassword, onAuthStateChanged,
-  setPersistence, browserLocalPersistence, browserSessionPersistence,
+  auth, signInWithEmailAndPassword, onAuthStateChanged, setPersistence,
+  browserLocalPersistence, browserSessionPersistence,
   sendPasswordResetEmail,
 } from '../fb.js';
-import { isConfigured } from '../firebase-config.js';
-import { $, el, biInline, T } from '../app.js';
+import {
+  isConfigured,
+} from '../firebase-config.js';
+import {
+  $, el, L, T,
+} from '../app.js';
 
 const form = $('#login-form');
 const messageHost = $('#login-message');
@@ -23,7 +27,7 @@ function show(kind, html) {
 }
 
 if (!isConfigured()) {
-  show('err', biInline('msg_config_missing'));
+  show('err', L('msg_config_missing'));
   form.querySelectorAll('input, button').forEach((n) => { n.disabled = true; });
 } else {
   onAuthStateChanged(auth, (user) => {
@@ -52,8 +56,8 @@ form.addEventListener('submit', async (e) => {
     // not, so an outsider cannot use this form to discover the owner's address.
     const tooMany = err.code === 'auth/too-many-requests';
     show('err', tooMany
-      ? 'Demasiados intentos. Espere un momento. <span class="bi-en-inline">Too many attempts. Wait a moment.</span>'
-      : biInline('login_failed'));
+      ? 'Too many attempts. Wait a moment.'
+      : L('login_failed'));
     btn.disabled = false;
     $('#password').value = '';
     $('#password').focus();
@@ -63,7 +67,7 @@ form.addEventListener('submit', async (e) => {
 $('#forgot').addEventListener('click', async () => {
   const email = $('#email').value.trim();
   if (!email) {
-    show('err', 'Escriba su correo primero. <span class="bi-en-inline">Enter your email first.</span>');
+    show('err', 'Enter your email first.');
     $('#email').focus();
     return;
   }
@@ -73,7 +77,7 @@ $('#forgot').addEventListener('click', async () => {
     console.warn('Reset failed', err.code);
     // Deliberately silent about whether the address exists.
   }
-  show('ok', biInline('login_reset_sent'));
+  show('ok', L('login_reset_sent'));
 });
 
 document.title = `${T('login_title')} — ${T('app_name')}`;

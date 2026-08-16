@@ -7,15 +7,18 @@
 // ---------------------------------------------------------------------------
 
 import {
-  auth, db,
-  onAuthStateChanged, signOut,
-  collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
-  query, where, orderBy, limit, runTransaction, writeBatch, serverTimestamp,
+  auth, db, onAuthStateChanged, signOut, collection, doc, getDoc, getDocs,
+  setDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, limit,
+  runTransaction, writeBatch, serverTimestamp,
 } from './fb.js';
-import { isConfigured } from './firebase-config.js';
-import { T, bi, biInline, es, en, esc } from './i18n.js';
+import {
+  isConfigured,
+} from './firebase-config.js';
+import {
+  T, L, esc,
+} from './i18n.js';
 
-export { T, bi, biInline, es, en, esc };
+export { T, L, esc };
 export {
   db, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   query, where, orderBy, limit, runTransaction, writeBatch, serverTimestamp,
@@ -302,8 +305,8 @@ function showConfigError() {
   document.body.innerHTML = '';
   document.body.append(
     el('div', { class: 'config-error' },
-      el('h1', { text: 'Configuración / Configuration' }),
-      el('p', { html: biInline('msg_config_missing') }),
+      el('h1', { text: 'Configuration' }),
+      el('p', { html: L('msg_config_missing') }),
       el('pre', { text: 'public/js/firebase-config.js' }),
     ),
   );
@@ -343,7 +346,7 @@ const NAV = [
 export async function initShell(activeHref) {
   const user = await requireAuth();
   const settings = await getSettings();
-  document.documentElement.lang = 'es';
+  document.documentElement.lang = 'en';
 
   const brand = settings.businessName || T('app_name');
   const active = activeHref || location.pathname.split('/').pop() || 'dashboard.html';
@@ -351,25 +354,25 @@ export async function initShell(activeHref) {
   const nav = el('nav', { class: 'nav', 'aria-label': 'Principal / Main' });
   for (const group of NAV) {
     if (group.group !== 'nav_home') {
-      nav.append(el('div', { class: 'nav-group', html: biInline(group.group) }));
+      nav.append(el('div', { class: 'nav-group', html: L(group.group) }));
     }
     for (const item of group.items) {
       nav.append(el('a', {
         class: 'nav-link' + (item.href === active ? ' is-active' : ''),
         href: item.href,
-        html: `<span class="nav-icon" aria-hidden="true">${item.icon}</span>${bi(item.key)}`,
+        html: `<span class="nav-icon" aria-hidden="true">${item.icon}</span>${L(item.key)}`,
       }));
     }
   }
   nav.append(
     el('div', { class: 'nav-spacer' }),
     el('a', { class: 'nav-link nav-link--muted', href: 'shortcuts.html',
-      html: `<span class="nav-icon" aria-hidden="true">⌨</span>${bi('nav_shortcuts')}` }),
+      html: `<span class="nav-icon" aria-hidden="true">⌨</span>${L('nav_shortcuts')}` }),
   );
 
   const topbar = el('header', { class: 'topbar' },
     el('button', {
-      class: 'topbar-menu', type: 'button', 'aria-label': 'Menú / Menu',
+      class: 'topbar-menu', type: 'button', 'aria-label': 'Menu',
       onclick: () => document.body.classList.toggle('nav-open'),
       html: '☰',
     }),
@@ -377,7 +380,7 @@ export async function initShell(activeHref) {
     el('div', { class: 'topbar-search' },
       el('input', {
         type: 'search', id: 'global-search', autocomplete: 'off',
-        placeholder: `${es('act_search')} / ${en('act_search')}  ( / )`,
+        placeholder: `${T('act_search')}  ( / )`,
         'aria-label': T('act_search'),
         onkeydown: (e) => {
           if (e.key === 'Enter' && e.currentTarget.value.trim()) {
@@ -390,7 +393,7 @@ export async function initShell(activeHref) {
       el('span', { class: 'topbar-email', text: user.email || '' }),
       el('button', {
         class: 'btn btn-ghost btn-sm', type: 'button',
-        html: biInline('act_sign_out'),
+        html: L('act_sign_out'),
         onclick: () => doSignOut(),
       }),
     ),
@@ -414,7 +417,7 @@ export async function initShell(activeHref) {
 export function pageHeader(titleKey, buttons = [], subtitle = '') {
   const bar = el('div', { class: 'pagebar' },
     el('div', { class: 'pagebar-title' },
-      el('h1', { html: biInline(titleKey) }),
+      el('h1', { html: L(titleKey) }),
       subtitle ? el('p', { class: 'pagebar-sub', text: subtitle }) : null,
     ),
     el('div', { class: 'pagebar-actions' },
@@ -425,7 +428,7 @@ export function pageHeader(titleKey, buttons = [], subtitle = '') {
           id: b.id || null,
           title: b.hint || null,
           onclick: b.onClick,
-          html: bi(b.key) + (b.accel ? `<kbd class="btn-kbd">${esc(b.accel)}</kbd>` : ''),
+          html: L(b.key) + (b.accel ? `<kbd class="btn-kbd">${esc(b.accel)}</kbd>` : ''),
         }),
       ),
     ),
@@ -434,7 +437,7 @@ export function pageHeader(titleKey, buttons = [], subtitle = '') {
 }
 
 export function setPageTitle(key) {
-  document.title = `${es(key)} / ${en(key)} — ${T('app_name')}`;
+  document.title = `${T(key)} — ${T('app_name')}`;
 }
 
 // ===========================================================================
@@ -457,7 +460,7 @@ export function toast(message, kind = 'ok', ms = 3200) {
 }
 
 export function toastKey(key, kind = 'ok') {
-  toast(biInline(key), kind);
+  toast(L(key), kind);
 }
 
 /** Promise-based confirm dialog. Resolves true/false. */
@@ -476,10 +479,10 @@ export function confirmDialog(messageHtml, { okKey = 'ok', cancelKey = 'act_canc
       el('div', { class: 'modal', role: 'dialog', 'aria-modal': 'true' },
         el('div', { class: 'modal-body', html: messageHtml }),
         el('div', { class: 'modal-foot' },
-          el('button', { class: 'btn btn-default', type: 'button', html: biInline(cancelKey), onclick: () => close(false) }),
+          el('button', { class: 'btn btn-default', type: 'button', html: L(cancelKey), onclick: () => close(false) }),
           el('button', {
             class: 'btn ' + (danger ? 'btn-danger' : 'btn-primary'),
-            type: 'button', html: biInline(okKey), onclick: () => close(true),
+            type: 'button', html: L(okKey), onclick: () => close(true),
           }),
         ),
       ),
@@ -536,12 +539,12 @@ export function fireAction(name) {
 const GOTO = {
   h: 'dashboard.html',
   i: 'invoices.html',
-  f: 'invoices.html',   // Facturas
+  f: 'invoices.html',
   q: 'quotes.html',
   c: 'customers.html',
   o: 'orders.html',
   p: 'payments.html',
-  a: 'items.html',      // Artículos
+  a: 'items.html',      // "Articles"/items — 'i' is taken by Invoices
   r: 'reports.html',
   e: 'statements.html',
   s: 'settings.html',
@@ -821,11 +824,11 @@ export function trackDirty(getDirty) {
 
 export function emptyState(messageKey = 'msg_empty_list', actionNode = null) {
   return el('div', { class: 'empty' },
-    el('p', { html: biInline(messageKey) }),
+    el('p', { html: L(messageKey) }),
     actionNode,
   );
 }
 
 export function spinner() {
-  return el('div', { class: 'spinner', html: `<span></span>${biInline('loading')}` });
+  return el('div', { class: 'spinner', html: `<span></span>${L('loading')}` });
 }

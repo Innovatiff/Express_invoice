@@ -1,14 +1,15 @@
 import {
-  $, el, esc, biInline, T, es, en,
-  initShell, pageHeader, setPageTitle, params,
-  money, fmtQty, fmtDate, today, monthStart, monthEnd, yearStart, yearEnd, addMonths, fromIso, iso,
-  loadAll, orderBy, limit, getSettings,
-  onAction, toast, toCSV, downloadFile, spinner, daysBetween,
+  $, el, esc, L, T, initShell, pageHeader, setPageTitle, params, money,
+  fmtQty, fmtDate, today, monthStart, monthEnd, yearStart, yearEnd,
+  addMonths, fromIso, iso, loadAll, orderBy, limit, getSettings, onAction,
+  toast, toCSV, downloadFile, spinner, daysBetween,
 } from '../app.js';
 import {
   displayStatus, statusKey, AGING_BUCKETS, agingBucket, PAYMENT_METHODS,
 } from '../model.js';
-import { dataTable, selectEl, statusPill } from '../components.js';
+import {
+  dataTable, selectEl, statusPill,
+} from '../components.js';
 
 setPageTitle('nav_reports');
 await initShell('reports.html');
@@ -88,13 +89,13 @@ periodSelect.addEventListener('change', () => {
 page.append(el('div', { class: 'card' },
   el('div', { class: 'filters' },
     el('div', { class: 'field' },
-      el('label', { class: 'field-label', html: biInline('nav_reports') }), reportSelect),
+      el('label', { class: 'field-label', html: L('nav_reports') }), reportSelect),
     el('div', { class: 'field' },
-      el('label', { class: 'field-label', html: biInline('rep_period') }), periodSelect),
+      el('label', { class: 'field-label', html: L('rep_period') }), periodSelect),
     el('div', { class: 'field' },
-      el('label', { class: 'field-label', html: biInline('date_from') }), fromInput),
+      el('label', { class: 'field-label', html: L('date_from') }), fromInput),
     el('div', { class: 'field' },
-      el('label', { class: 'field-label', html: biInline('date_to') }), toInput),
+      el('label', { class: 'field-label', html: L('date_to') }), toInput),
   ),
 ));
 
@@ -155,7 +156,7 @@ async function run() {
     console.error('Report failed', err);
     resultHost.innerHTML = '';
     resultHost.append(el('div', { class: 'card' }, el('div', { class: 'card-body' },
-      el('p', { html: 'No se pudo generar el informe. <span class="bi-en-inline">Could not build the report.</span>' }),
+      el('p', { html: 'Could not build the report.' }),
       el('p', { class: 'text-small text-muted', text: err.message || '' }),
     )));
   }
@@ -166,7 +167,7 @@ function reportCard(titleKey, tableNode, summaryNode) {
     summaryNode || null,
     el('div', { class: 'card' },
       el('div', { class: 'card-head' },
-        el('h2', { html: biInline(titleKey) }),
+        el('h2', { html: L(titleKey) }),
         el('span', { class: 'text-small text-muted',
           text: `${fmtDate(state.from)} — ${fmtDate(state.to)}` }),
       ),
@@ -176,7 +177,7 @@ function reportCard(titleKey, tableNode, summaryNode) {
 }
 
 function noRows() {
-  return el('div', { class: 'empty', html: `<p>${biInline('rep_no_rows')}</p>` });
+  return el('div', { class: 'empty', html: `<p>${L('rep_no_rows')}</p>` });
 }
 
 // ===========================================================================
@@ -200,7 +201,7 @@ async function buildSummary() {
   }
   const list = [...byMonth.values()].sort((a, b) => a.month.localeCompare(b.month));
 
-  lastHeader = ['Mes / Month', 'Cantidad / Count', 'Subtotal', 'Impuesto / Tax', 'Total', 'Pagado / Paid'];
+  lastHeader = ['Month', 'Count', 'Subtotal', 'Tax', 'Total', 'Paid'];
   lastRows = list.map((r) => [r.month, r.count, r.subtotal / 100, r.tax / 100, r.total / 100, r.paid / 100]);
 
   const totals = list.reduce((acc, r) => ({
@@ -210,16 +211,16 @@ async function buildSummary() {
 
   const summary = el('div', { class: 'stat-row' },
     el('div', { class: 'stat' },
-      el('div', { class: 'stat-label', html: biInline('total') }),
+      el('div', { class: 'stat-label', html: L('total') }),
       el('div', { class: 'stat-value', text: money(totals.total) })),
     el('div', { class: 'stat' },
-      el('div', { class: 'stat-label', html: biInline('nav_invoices') }),
+      el('div', { class: 'stat-label', html: L('nav_invoices') }),
       el('div', { class: 'stat-value', text: String(totals.count) })),
     el('div', { class: 'stat' },
-      el('div', { class: 'stat-label', html: biInline('tax') }),
+      el('div', { class: 'stat-label', html: L('tax') }),
       el('div', { class: 'stat-value', text: money(totals.tax) })),
     el('div', { class: 'stat' },
-      el('div', { class: 'stat-label', html: biInline('amount_paid') }),
+      el('div', { class: 'stat-label', html: L('amount_paid') }),
       el('div', { class: 'stat-value', text: money(totals.paid) })),
   );
 
@@ -227,7 +228,7 @@ async function buildSummary() {
 
   return reportCard('rep_sales_summary', dataTable({
     columns: [
-      { key: 'month', label: 'Mes / Month', className: 'nowrap', sortable: false,
+      { key: 'month', label: 'Month', className: 'nowrap', sortable: false,
         html: (r) => esc(monthLabel(r.month)) },
       { key: 'count', labelKey: 'rep_count', className: 'num', sortable: false,
         html: (r) => String(r.count), footer: () => String(totals.count) },
@@ -273,7 +274,7 @@ async function buildByCustomer() {
   }
   const list = [...byCustomer.values()].sort((a, b) => b.total - a.total);
 
-  lastHeader = ['Cliente / Customer', 'Facturas / Invoices', 'Total', 'Pagado / Paid', 'Saldo / Balance'];
+  lastHeader = ['Customer', 'Invoices', 'Total', 'Paid', 'Balance'];
   lastRows = list.map((r) => [r.name, r.count, r.total / 100, r.paid / 100, r.balance / 100]);
 
   if (!list.length) return reportCard('rep_sales_by_customer', noRows());
@@ -323,7 +324,7 @@ async function buildByItem() {
   }
   const list = [...byItem.values()].sort((a, b) => b.total - a.total);
 
-  lastHeader = ['Código / Code', 'Descripción / Description', 'Cantidad / Qty', 'Veces / Times', 'Total'];
+  lastHeader = ['Code', 'Description', 'Qty', 'Times', 'Total'];
   lastRows = list.map((r) => [r.code, firstLine(r.description), r.qty, r.count, r.total / 100]);
 
   if (!list.length) return reportCard('rep_sales_by_item', noRows());
@@ -362,7 +363,7 @@ async function buildUnpaid() {
     .filter((i) => live(i) && (Number(i.balanceCents) || 0) > 0)
     .sort((a, b) => String(a.dueDate || a.date).localeCompare(String(b.dueDate || b.date)));
 
-  lastHeader = ['Factura / Invoice', 'Fecha / Date', 'Vence / Due', 'Cliente / Customer', 'Total', 'Saldo / Balance', 'Días / Days'];
+  lastHeader = ['Invoice', 'Date', 'Due', 'Customer', 'Total', 'Balance', 'Days'];
   lastRows = list.map((r) => [
     r.number, r.date, r.dueDate, r.customerName,
     (Number(r.totalCents) || 0) / 100, (Number(r.balanceCents) || 0) / 100,
@@ -414,7 +415,7 @@ async function buildAged() {
   }
   const list = [...byCustomer.values()].sort((a, b) => b.total - a.total);
 
-  lastHeader = ['Cliente / Customer', ...AGING_BUCKETS.map((b) => `${es(b.key)} / ${en(b.key)}`), 'Total'];
+  lastHeader = ['Customer', ...AGING_BUCKETS.map((b) => `${es(b.key)} / ${en(b.key)}`), 'Total'];
   lastRows = list.map((r) => [r.name, ...r.buckets.map((c) => c / 100), r.total / 100]);
 
   if (!list.length) return reportCard('rep_aged', noRows());
@@ -438,7 +439,7 @@ async function buildAged() {
 
   return reportCard('rep_aged', dataTable({ columns, rows: list }),
     el('p', { class: 'text-small text-muted mb-1',
-      html: `Antigüedad calculada al ${esc(fmtDate(asOf))}. <span class="bi-en-inline">Aged as of ${esc(fmtDate(asOf))}.</span>` }));
+      html: `Aged as of ${esc(fmtDate(asOf))}.` }));
 }
 
 // ===========================================================================
@@ -456,7 +457,7 @@ async function buildPayments() {
     byMethod.set(key, (byMethod.get(key) || 0) + (Number(pay.amountCents) || 0));
   }
 
-  lastHeader = ['Pago / Payment', 'Fecha / Date', 'Cliente / Customer', 'Forma / Method', 'Referencia / Reference', 'Monto / Amount'];
+  lastHeader = ['Payment', 'Date', 'Customer', 'Method', 'Reference', 'Amount'];
   lastRows = list.map((r) => [
     r.number, r.date, r.customerName, methodLabel(r.method), r.reference, (Number(r.amountCents) || 0) / 100,
   ]);
@@ -465,11 +466,11 @@ async function buildPayments() {
     ...PAYMENT_METHODS
       .filter((m) => byMethod.get(m.value))
       .map((m) => el('div', { class: 'stat' },
-        el('div', { class: 'stat-label', html: biInline(m.key) }),
+        el('div', { class: 'stat-label', html: L(m.key) }),
         el('div', { class: 'stat-value', text: money(byMethod.get(m.value)) }),
       )),
     el('div', { class: 'stat stat--good' },
-      el('div', { class: 'stat-label', html: biInline('total') }),
+      el('div', { class: 'stat-label', html: L('total') }),
       el('div', { class: 'stat-value', text: money(list.reduce((s, r) => s + (Number(r.amountCents) || 0), 0)) }),
     ),
   );
@@ -523,18 +524,18 @@ async function buildTax() {
 
   const settings = await getSettings();
 
-  lastHeader = ['Mes / Month', 'Gravable / Taxable', 'Exento / Exempt',
+  lastHeader = ['Month', 'Taxable', 'Exempt',
     settings.tax1Name || 'Tax 1', settings.tax2Name || 'Tax 2', 'Total'];
   lastRows = list.map((r) => [r.month, r.taxable / 100, r.exempt / 100, r.tax1 / 100, r.tax2 / 100, r.total / 100]);
 
   if (!list.length) return reportCard('rep_tax', noRows());
 
   const columns = [
-    { key: 'month', label: 'Mes / Month', className: 'nowrap', sortable: false,
+    { key: 'month', label: 'Month', className: 'nowrap', sortable: false,
       html: (r) => esc(monthLabel(r.month)) },
-    { key: 'taxable', label: `${es('line_taxable')} / ${en('item_taxable')}`, className: 'num', sortable: false,
+    { key: 'taxable', label: `${T('line_taxable')} / ${T('item_taxable')}`, className: 'num', sortable: false,
       html: (r) => esc(money(r.taxable)), footer: (l) => esc(money(l.reduce((s, r) => s + r.taxable, 0))) },
-    { key: 'exempt', label: `${es('cust_tax_exempt')} / ${en('cust_tax_exempt')}`, className: 'num cell-muted', sortable: false,
+    { key: 'exempt', label: `${T('cust_tax_exempt')}`, className: 'num cell-muted', sortable: false,
       html: (r) => esc(money(r.exempt)), footer: (l) => esc(money(l.reduce((s, r) => s + r.exempt, 0))) },
     { key: 'tax1', label: settings.tax1Name || 'Tax 1', className: 'num', sortable: false,
       html: (r) => `<strong>${esc(money(r.tax1))}</strong>`, footer: (l) => esc(money(l.reduce((s, r) => s + r.tax1, 0))) },
@@ -570,7 +571,7 @@ async function buildQuoteConversion() {
   }
   const rate = list.length ? Math.round(((counts.converted || 0) / list.length) * 100) : 0;
 
-  lastHeader = ['Cotización / Quote', 'Fecha / Date', 'Cliente / Customer', 'Total', 'Estado / Status'];
+  lastHeader = ['Quote', 'Date', 'Customer', 'Total', 'Status'];
   lastRows = list.map((r) => [
     r.number, r.date, r.customerName, (Number(r.totalCents) || 0) / 100,
     `${es(statusKey(displayStatus(r, asOf)))} / ${en(statusKey(displayStatus(r, asOf)))}`,
@@ -578,17 +579,17 @@ async function buildQuoteConversion() {
 
   const summary = el('div', { class: 'stat-row' },
     el('div', { class: 'stat' },
-      el('div', { class: 'stat-label', html: biInline('nav_quotes') }),
+      el('div', { class: 'stat-label', html: L('nav_quotes') }),
       el('div', { class: 'stat-value', text: String(list.length) })),
     el('div', { class: 'stat stat--good' },
-      el('div', { class: 'stat-label', html: biInline('st_converted') }),
+      el('div', { class: 'stat-label', html: L('st_converted') }),
       el('div', { class: 'stat-value', text: `${rate}%` }),
       el('div', { class: 'stat-sub', text: `${counts.converted || 0} ${T('of')} ${list.length}` })),
     el('div', { class: 'stat' },
-      el('div', { class: 'stat-label', html: biInline('total') }),
+      el('div', { class: 'stat-label', html: L('total') }),
       el('div', { class: 'stat-value', text: money(totalValue) })),
     el('div', { class: 'stat' },
-      el('div', { class: 'stat-label', html: biInline('st_accepted') }),
+      el('div', { class: 'stat-label', html: L('st_accepted') }),
       el('div', { class: 'stat-value', text: money(convertedValue) })),
   );
 
@@ -623,7 +624,7 @@ function exportCsv() {
     `${state.report}-${state.from}-${state.to}.csv`,
     '﻿' + toCSV([
       [`${es(name.labelKey)} / ${en(name.labelKey)}`],
-      [`${es('date_from')} ${state.from}`, `${es('date_to')} ${state.to}`],
+      [`${T('date_from')} ${state.from}`, `${T('date_to')} ${state.to}`],
       [],
       lastHeader,
       ...lastRows,

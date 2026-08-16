@@ -7,15 +7,16 @@
 // ---------------------------------------------------------------------------
 
 import {
-  $, el, esc, biInline, T, es, en,
-  initShell, pageHeader, setPageTitle, params,
-  money, fmtDate, today, monthStart, yearStart,
-  loadAll, orderBy, where, limit,
-  onAction, toast, matchesSearch, debounce,
-  toCSV, downloadFile, spinner,
+  $, el, esc, L, T, initShell, pageHeader, setPageTitle, params, money,
+  fmtDate, today, monthStart, yearStart, loadAll, orderBy, where, limit,
+  onAction, toast, matchesSearch, debounce, toCSV, downloadFile, spinner,
 } from './app.js';
-import { DOC_TYPES, displayStatus, statusKey, QUOTE_STATUSES, ORDER_STATUSES } from './model.js';
-import { statusPill, dataTable, sortRows, field, selectEl } from './components.js';
+import {
+  DOC_TYPES, displayStatus, statusKey, QUOTE_STATUSES, ORDER_STATUSES,
+} from './model.js';
+import {
+  statusPill, dataTable, sortRows, field, selectEl,
+} from './components.js';
 
 const PAGE_SIZE = 400;
 
@@ -52,7 +53,7 @@ export async function mountDocList(type) {
 
   const searchInput = el('input', {
     type: 'search', id: 'list-search', value: state.search,
-    placeholder: `${es('act_search')} / ${en('act_search')}`,
+    placeholder: `${T('act_search')}`,
   });
   searchInput.addEventListener('input', debounce(() => {
     state.search = searchInput.value;
@@ -96,19 +97,19 @@ export async function mountDocList(type) {
 
   const filters = el('div', { class: 'filters' },
     el('div', { class: 'field' },
-      el('label', { class: 'field-label', html: biInline('act_search') }), searchInput),
+      el('label', { class: 'field-label', html: L('act_search') }), searchInput),
     el('div', { class: 'field' },
-      el('label', { class: 'field-label', html: biInline('status') }), statusSelect),
+      el('label', { class: 'field-label', html: L('status') }), statusSelect),
     el('div', { class: 'field' },
-      el('label', { class: 'field-label', html: biInline('rep_period') }), rangeSelect),
+      el('label', { class: 'field-label', html: L('rep_period') }), rangeSelect),
     el('div', { class: 'field' },
-      el('label', { class: 'field-label', html: biInline('date_from') }), fromInput),
+      el('label', { class: 'field-label', html: L('date_from') }), fromInput),
     el('div', { class: 'field' },
-      el('label', { class: 'field-label', html: biInline('date_to') }), toInput),
+      el('label', { class: 'field-label', html: L('date_to') }), toInput),
     el('div', { class: 'spacer' }),
     countLabel,
     el('button', {
-      class: 'btn btn-default btn-sm', type: 'button', html: biInline('act_clear'),
+      class: 'btn btn-default btn-sm', type: 'button', html: L('act_clear'),
       onclick: () => {
         state.search = ''; state.status = 'all'; state.from = ''; state.to = ''; state.customerId = '';
         searchInput.value = ''; statusSelect.value = 'all';
@@ -131,7 +132,7 @@ export async function mountDocList(type) {
     console.error('Could not load documents', err);
     tableHost.innerHTML = '';
     tableHost.append(el('div', { class: 'empty' },
-      el('p', { html: 'No se pudo cargar la lista. <span class="bi-en-inline">Could not load the list.</span>' }),
+      el('p', { html: 'Could not load the list.' }),
       el('p', { class: 'text-small text-muted', text: err.message || '' }),
     ));
     return;
@@ -217,24 +218,16 @@ export async function mountDocList(type) {
 
     if (rows.length >= PAGE_SIZE) {
       tableHost.append(el('div', { class: 'card-foot text-small text-muted', html:
-        `Mostrando los ${PAGE_SIZE} documentos más recientes. Acote por fecha para ver los anteriores. ` +
-        `<span class="bi-en-inline">Showing the ${PAGE_SIZE} most recent. Narrow the dates to reach older ones.</span>` }));
+        `Showing the ${PAGE_SIZE} most recent. Narrow the dates to reach older ones.` }));
     }
   }
 
   function exportCsv() {
     const asOf = today();
     const header = [
-      `${es(cfg.numberKey)} / ${en(cfg.numberKey)}`,
-      `${es('date')} / ${en('date')}`,
-      `${es('customer')} / ${en('customer')}`,
-      `${es('po_number')} / ${en('po_number')}`,
-      `${es('subtotal')} / ${en('subtotal')}`,
-      `${es('tax')} / ${en('tax')}`,
-      `${es('total')} / ${en('total')}`,
-      `${es('amount_paid')} / ${en('amount_paid')}`,
-      `${es('balance_due')} / ${en('balance_due')}`,
-      `${es('status')} / ${en('status')}`,
+      T(cfg.numberKey), T('date'), T('customer'), T('po_number'),
+      T('subtotal'), T('tax'), T('total'), T('amount_paid'),
+      T('balance_due'), T('status'),
     ];
     const body = filtered.map((r) => [
       r.number, r.date, r.customerName, r.poNumber,
@@ -243,7 +236,7 @@ export async function mountDocList(type) {
       (Number(r.totalCents) || 0) / 100,
       (Number(r.paidCents) || 0) / 100,
       (Number(r.balanceCents) || 0) / 100,
-      `${es(statusKey(displayStatus(r, asOf)))} / ${en(statusKey(displayStatus(r, asOf)))}`,
+      T(statusKey(displayStatus(r, asOf))),
     ]);
     downloadFile(`${type}s-${today()}.csv`, '﻿' + toCSV([header, ...body]));
     toast(`${filtered.length} ${T('imp_rows_found')}`, 'ok');

@@ -1,15 +1,17 @@
 import {
-  $, el, esc, biInline, T, es, en,
-  initShell, pageHeader, setPageTitle, params,
-  money, fmtDate, today, yearStart,
-  loadAll, loadOne, where, orderBy, limit,
+  $, el, esc, L, T, initShell, pageHeader, setPageTitle, params, money,
+  fmtDate, today, yearStart, loadAll, loadOne, where, orderBy, limit,
   onAction, toast, spinner, toCSV, downloadFile,
 } from '../app.js';
 import {
   buildStatement, openingBalance, AGING_BUCKETS, agingBucket,
 } from '../model.js';
-import { loadCustomers } from '../store.js';
-import { dataTable, customerAutocomplete, field, card } from '../components.js';
+import {
+  loadCustomers,
+} from '../store.js';
+import {
+  dataTable, customerAutocomplete, field, card,
+} from '../components.js';
 
 setPageTitle('nav_statements');
 await initShell('statements.html');
@@ -52,13 +54,13 @@ openOnlyBox.addEventListener('change', () => run());
 page.append(el('div', { class: 'card' },
   el('div', { class: 'filters' },
     el('div', { class: 'field' },
-      el('label', { class: 'field-label', html: biInline('customer') }), customerInput),
+      el('label', { class: 'field-label', html: L('customer') }), customerInput),
     el('div', { class: 'field' },
-      el('label', { class: 'field-label', html: biInline('date_from') }), fromInput),
+      el('label', { class: 'field-label', html: L('date_from') }), fromInput),
     el('div', { class: 'field' },
-      el('label', { class: 'field-label', html: biInline('date_to') }), toInput),
+      el('label', { class: 'field-label', html: L('date_to') }), toInput),
     el('label', { class: 'check' }, openOnlyBox,
-      el('span', { html: 'Solo facturas abiertas <span class="bi-en-inline">Open invoices only</span>' })),
+      el('span', { html: 'Open invoices only' })),
   ),
 ));
 
@@ -73,7 +75,7 @@ async function run() {
   resultHost.innerHTML = '';
   if (!state.customerId) {
     resultHost.append(el('div', { class: 'card' }, el('div', { class: 'card-body' },
-      el('div', { class: 'empty', html: `<p>${biInline('msg_pick_customer')}</p>` }))));
+      el('div', { class: 'empty', html: `<p>${L('msg_pick_customer')}</p>` }))));
     return;
   }
   resultHost.append(spinner());
@@ -112,16 +114,16 @@ async function run() {
 
     resultHost.append(el('div', { class: 'stat-row' },
       el('div', { class: 'stat' },
-        el('div', { class: 'stat-label', html: `${es('balance')} ${es('date_from')} <span class="bi-en-inline">Balance forward</span>` }),
+        el('div', { class: 'stat-label', text: 'Balance forward' }),
         el('div', { class: 'stat-value', text: money(opening) })),
       el('div', { class: 'stat' },
-        el('div', { class: 'stat-label', html: biInline('total') }),
+        el('div', { class: 'stat-label', html: L('total') }),
         el('div', { class: 'stat-value', text: money(rows.reduce((s, r) => s + r.chargeCents, 0)) })),
       el('div', { class: 'stat' },
-        el('div', { class: 'stat-label', html: biInline('amount_paid') }),
+        el('div', { class: 'stat-label', html: L('amount_paid') }),
         el('div', { class: 'stat-value', text: money(rows.reduce((s, r) => s + r.creditCents, 0)) })),
       el('div', { class: 'stat' + (totalOpen > 0 ? ' stat--warn' : '') },
-        el('div', { class: 'stat-label', html: biInline('balance_due') }),
+        el('div', { class: 'stat-label', html: L('balance_due') }),
         el('div', { class: 'stat-value', text: money(opening + closingBalanceCents) })),
     ));
 
@@ -136,8 +138,8 @@ async function run() {
           } },
         { key: 'kind', labelKey: 'line_description', sortable: false,
           html: (r) => (r.kind === 'invoice'
-            ? biInline('doc_invoice')
-            : biInline('doc_payment')) + (r.description ? ` — <span class="cell-muted">${esc(r.description)}</span>` : '') },
+            ? L('doc_invoice')
+            : L('doc_payment')) + (r.description ? ` — <span class="cell-muted">${esc(r.description)}</span>` : '') },
         { key: 'charge', labelKey: 'amount', className: 'num', sortable: false,
           html: (r) => (r.chargeCents ? esc(money(r.chargeCents)) : ''),
           footer: (l) => esc(money(l.reduce((s, r) => s + r.chargeCents, 0))) },
@@ -173,7 +175,7 @@ async function run() {
     console.error(err);
     resultHost.innerHTML = '';
     resultHost.append(el('div', { class: 'card' }, el('div', { class: 'card-body' },
-      el('p', { html: 'No se pudo generar el estado de cuenta. <span class="bi-en-inline">Could not build the statement.</span>' }),
+      el('p', { html: 'Could not build the statement.' }),
       el('p', { class: 'text-small text-muted', text: err.message || '' }),
     )));
   }
@@ -188,16 +190,16 @@ function openPrint() {
 function exportCsv() {
   if (!lastRows.length) { toast(T('rep_no_rows'), 'warn'); return; }
   const header = [
-    `${es('date')} / ${en('date')}`,
-    `${es('reference')} / ${en('reference')}`,
-    `${es('line_description')} / ${en('line_description')}`,
-    `${es('amount')} / ${en('amount')}`,
-    `${es('amount_paid')} / ${en('amount_paid')}`,
-    `${es('balance')} / ${en('balance')}`,
+    `${T('date')}`,
+    `${T('reference')}`,
+    `${T('line_description')}`,
+    `${T('amount')}`,
+    `${T('amount_paid')}`,
+    `${T('balance')}`,
   ];
   const body = lastRows.map((r) => [
     r.date, r.ref,
-    r.kind === 'invoice' ? `${es('doc_invoice')} / ${en('doc_invoice')}` : `${es('doc_payment')} / ${en('doc_payment')}`,
+    r.kind === 'invoice' ? `${T('doc_invoice')}` : `${T('doc_payment')}`,
     r.chargeCents / 100, r.creditCents / 100, r.balanceCents / 100,
   ]);
   downloadFile(`estado-statement-${state.customerId}-${today()}.csv`, '﻿' + toCSV([header, ...body]));

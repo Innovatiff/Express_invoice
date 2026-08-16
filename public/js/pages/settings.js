@@ -1,10 +1,14 @@
 import {
-  $, el, biInline, T, es, en, initShell, pageHeader, setPageTitle, parseRate,
-  today, saveSettings, loadAll, peekCounter, setCounter, COUNTER_DEFAULTS,
+  $, el, L, T, initShell, pageHeader, setPageTitle, parseRate, today,
+  saveSettings, loadAll, peekCounter, setCounter, COUNTER_DEFAULTS,
   onAction, toast, toastKey, trackDirty, downloadFile, formatNumber,
 } from '../app.js';
-import { auth, updatePassword } from '../fb.js';
-import { field, card, selectEl } from '../components.js';
+import {
+  auth, updatePassword,
+} from '../fb.js';
+import {
+  field, card, selectEl,
+} from '../components.js';
 
 setPageTitle('nav_settings');
 const { user, settings } = await initShell('settings.html');
@@ -54,12 +58,12 @@ logoInput.addEventListener('change', async () => {
     markDirty();
   } catch (err) {
     console.error(err);
-    toast('No se pudo leer la imagen. <span class="bi-en-inline">Could not read the image.</span>', 'err');
+    toast('Could not read the image.', 'err');
   }
 });
 
 const logoClear = el('button', {
-  class: 'btn btn-ghost btn-sm', type: 'button', html: biInline('act_clear'),
+  class: 'btn btn-ghost btn-sm', type: 'button', html: L('act_clear'),
   onclick: () => {
     draft.logoDataUrl = '';
     logoPreview.style.display = 'none';
@@ -90,10 +94,10 @@ page.append(card('set_business', el('div', {},
     field('set_tax_id', bind('taxId', el('input', { type: 'text', placeholder: 'RNC · Tax ID' }))),
   ),
   el('div', { class: 'field' },
-    el('label', { class: 'field-label', html: biInline('set_logo') }),
+    el('label', { class: 'field-label', html: L('set_logo') }),
     logoPreview,
     el('div', { class: 'form-row' }, logoInput, logoClear),
-    el('p', { class: 'field-hint', html: `${es('set_logo_hint')} <span class="bi-en-inline">${en('set_logo_hint')}</span>` }),
+    el('p', { class: 'field-hint', html: `${T('set_logo_hint')}` }),
   ),
 )));
 
@@ -117,8 +121,8 @@ page.append(card('set_tax', el('div', {},
     field('set_tax2_rate', bind('tax2Rate', el('input', { type: 'text', class: 'input-num', inputmode: 'decimal' }), rateT)),
   ),
   el('div', { class: 'form-row' },
-    el('label', { class: 'check' }, compoundBox, el('span', { html: biInline('set_tax2_compound') })),
-    el('label', { class: 'check' }, inclusiveBox, el('span', { html: biInline('set_tax_inclusive') })),
+    el('label', { class: 'check' }, compoundBox, el('span', { html: L('set_tax2_compound') })),
+    el('label', { class: 'check' }, inclusiveBox, el('span', { html: L('set_tax_inclusive') })),
   ),
 )));
 
@@ -155,18 +159,18 @@ for (const type of counterTypes) {
   const labelKey = { invoice: 'doc_invoice', quote: 'doc_quote', order: 'doc_order', payment: 'doc_payment' }[type];
 
   numberingBody.append(el('div', { class: 'form-row', style: 'margin-bottom:12px' },
-    el('div', { style: 'min-width:130px;font-weight:600', html: biInline(labelKey) }),
+    el('div', { style: 'min-width:130px;font-weight:600', html: L(labelKey) }),
     el('div', { class: 'field', style: 'max-width:120px' },
-      el('label', { class: 'field-label', html: biInline('set_prefix') }), prefixInput),
+      el('label', { class: 'field-label', html: L('set_prefix') }), prefixInput),
     el('div', { class: 'field', style: 'max-width:130px' },
-      el('label', { class: 'field-label', html: biInline('set_next_number') }), nextInput),
+      el('label', { class: 'field-label', html: L('set_next_number') }), nextInput),
     el('div', { class: 'field', style: 'max-width:90px' },
-      el('label', { class: 'field-label', html: biInline('set_padding') }), padInput),
+      el('label', { class: 'field-label', html: L('set_padding') }), padInput),
     el('div', { style: 'padding-bottom:8px' }, preview),
   ));
 }
 numberingBody.append(el('p', { class: 'field-hint',
-  html: `${es('set_numbering_hint')} <span class="bi-en-inline">${en('set_numbering_hint')}</span>` }));
+  html: `${T('set_numbering_hint')}` }));
 
 page.append(card('set_numbering', numberingBody));
 
@@ -189,7 +193,7 @@ page.append(card('set_defaults', el('div', {},
     field('set_default_due_days', bind('defaultDueDays', el('input', { type: 'text', class: 'input-num', inputmode: 'numeric' }), intT)),
   ),
   el('div', { class: 'grid grid-2' },
-    field('set_default_terms', bind('defaultTerms', el('input', { type: 'text', placeholder: 'Neto 30 / Net 30' }))),
+    field('set_default_terms', bind('defaultTerms', el('input', { type: 'text', placeholder: 'Net 30' }))),
     field('set_quote_valid_days', bind('quoteValidDays', el('input', { type: 'text', class: 'input-num', inputmode: 'numeric' }), intT)),
   ),
   el('div', { class: 'grid grid-2' },
@@ -207,27 +211,26 @@ const passwordInput = el('input', { type: 'password', autocomplete: 'new-passwor
 page.append(card('set_account', el('div', {},
   el('div', { class: 'grid grid-2' },
     el('div', { class: 'field' },
-      el('label', { class: 'field-label', html: biInline('login_email') }),
+      el('label', { class: 'field-label', html: L('login_email') }),
       el('input', { type: 'text', value: user.email || '', readonly: true }),
     ),
     el('div', { class: 'field' },
-      el('label', { class: 'field-label', html: biInline('set_uid') }),
+      el('label', { class: 'field-label', html: L('set_uid') }),
       el('input', { type: 'text', class: 'input-mono', value: user.uid, readonly: true,
         onclick: (e) => e.currentTarget.select() }),
       el('p', { class: 'field-hint', html:
-        'Péguelo en <code>firestore.rules</code> para dejar la base a nombre de esta cuenta únicamente. ' +
-        '<span class="bi-en-inline">Paste it into firestore.rules to lock the database to this account alone.</span>' }),
+        'Paste it into <code>firestore.rules</code> to lock the database to this account alone.' }),
     ),
   ),
   el('div', { class: 'form-row' },
     el('div', { class: 'field flex-1', style: 'max-width:320px' },
-      el('label', { class: 'field-label', html: biInline('set_new_password') }), passwordInput),
+      el('label', { class: 'field-label', html: L('set_new_password') }), passwordInput),
     el('button', {
-      class: 'btn btn-default', type: 'button', html: biInline('set_change_password'),
+      class: 'btn btn-default', type: 'button', html: L('set_change_password'),
       onclick: async () => {
         const value = passwordInput.value;
         if (value.length < 6) {
-          toast('Use al menos 6 caracteres. <span class="bi-en-inline">Use at least 6 characters.</span>', 'warn');
+          toast('Use at least 6 characters.', 'warn');
           return;
         }
         try {
@@ -237,8 +240,8 @@ page.append(card('set_account', el('div', {},
         } catch (err) {
           console.error(err);
           toast(err.code === 'auth/requires-recent-login'
-            ? 'Vuelva a iniciar sesión y reintente. <span class="bi-en-inline">Sign in again, then retry.</span>'
-            : 'No se pudo cambiar. <span class="bi-en-inline">Could not change it.</span>', 'err');
+            ? 'Sign in again, then retry.'
+            : 'Could not change it.', 'err');
         }
       },
     }),
@@ -251,13 +254,13 @@ page.append(card('set_account', el('div', {},
 
 page.append(card('set_data', el('div', {},
   el('p', { class: 'text-small text-muted',
-    html: `${es('set_backup_hint')} <span class="bi-en-inline">${en('set_backup_hint')}</span>` }),
+    html: `${T('set_backup_hint')}` }),
   el('div', { class: 'form-row' },
     el('button', {
-      class: 'btn btn-default', type: 'button', html: biInline('set_backup'),
+      class: 'btn btn-default', type: 'button', html: L('set_backup'),
       onclick: () => backup(),
     }),
-    el('a', { class: 'btn btn-default', href: 'import.html', html: biInline('nav_import') }),
+    el('a', { class: 'btn btn-default', href: 'import.html', html: L('nav_import') }),
   ),
 )));
 
@@ -273,12 +276,12 @@ async function save() {
     toastKey('msg_saved');
   } catch (err) {
     console.error(err);
-    toast('No se pudo guardar. <span class="bi-en-inline">Could not save.</span>', 'err');
+    toast('Could not save.', 'err');
   }
 }
 
 async function backup() {
-  toast('Preparando el respaldo… <span class="bi-en-inline">Preparing the backup…</span>');
+  toast('Preparing the backup…');
   try {
     const [customers, items, invoices, quotes, orders, payments, recurring] = await Promise.all([
       loadAll('customers'), loadAll('items'), loadAll('invoices'),
@@ -297,7 +300,7 @@ async function backup() {
     toast(`${invoices.length} ${T('nav_invoices')} · ${customers.length} ${T('nav_customers')}`, 'ok', 5000);
   } catch (err) {
     console.error(err);
-    toast('No se pudo generar el respaldo. <span class="bi-en-inline">Could not build the backup.</span>', 'err');
+    toast('Could not build the backup.', 'err');
   }
 }
 

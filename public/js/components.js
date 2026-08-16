@@ -2,8 +2,12 @@
 // Reusable UI pieces shared by several screens.
 // ---------------------------------------------------------------------------
 
-import { el, esc, biInline, T, money, fmtDate, matchesSearch, debounce } from './app.js';
-import { displayStatus, statusKey } from './model.js';
+import {
+  el, esc, L, T, money, fmtDate, matchesSearch, debounce,
+} from './app.js';
+import {
+  displayStatus, statusKey,
+} from './model.js';
 
 // ===========================================================================
 // Status pill
@@ -11,7 +15,7 @@ import { displayStatus, statusKey } from './model.js';
 
 export function statusPill(docOrStatus, asOf) {
   const status = typeof docOrStatus === 'string' ? docOrStatus : displayStatus(docOrStatus, asOf);
-  return `<span class="pill pill-${esc(status)}">${biInline(statusKey(status))}</span>`;
+  return `<span class="pill pill-${esc(status)}">${L(statusKey(status))}</span>`;
 }
 
 // ===========================================================================
@@ -61,7 +65,7 @@ export function autocomplete(input, {
 
     list.innerHTML = '';
     if (!rows.length) {
-      const empty = el('div', { class: 'ac-empty', html: biInline('msg_no_results') });
+      const empty = el('div', { class: 'ac-empty', html: L('msg_no_results') });
       list.append(empty);
       if (emptyAction) {
         list.append(el('div', {
@@ -181,7 +185,7 @@ export function dataTable({ columns, rows, onRowClick, rowClass, emptyKey = 'msg
     const sorted = sort && sort.key === c.key ? (sort.dir === 'asc' ? ' sort-asc' : ' sort-desc') : '';
     const th = el('th', {
       class: (c.className || '') + (c.sortable === false ? '' : ' sortable') + sorted,
-      html: c.labelKey ? biInline(c.labelKey) : esc(c.label || ''),
+      html: c.labelKey ? L(c.labelKey) : esc(c.label || ''),
     });
     if (c.sortable !== false && onSort) {
       th.addEventListener('click', () => onSort(c.key));
@@ -195,7 +199,7 @@ export function dataTable({ columns, rows, onRowClick, rowClass, emptyKey = 'msg
   if (!rows.length) {
     tbody.append(el('tr', {},
       el('td', { colspan: columns.length },
-        el('div', { class: 'empty', html: `<p>${biInline(emptyKey)}</p>` }),
+        el('div', { class: 'empty', html: `<p>${L(emptyKey)}</p>` }),
       ),
     ));
   } else {
@@ -251,7 +255,7 @@ export function sortRows(rows, key, dir, accessors = {}) {
 
 export function field(labelKey, control, hint) {
   return el('div', { class: 'field' },
-    el('label', { class: 'field-label', html: biInline(labelKey) }),
+    el('label', { class: 'field-label', html: L(labelKey) }),
     control,
     hint ? el('p', { class: 'field-hint', html: hint }) : null,
   );
@@ -272,7 +276,7 @@ export function moneyInputEl(attrs = {}) {
 export function checkbox(labelKey, attrs = {}) {
   return el('label', { class: 'check' },
     el('input', { type: 'checkbox', ...attrs }),
-    el('span', { html: biInline(labelKey) }),
+    el('span', { html: L(labelKey) }),
   );
 }
 
@@ -288,7 +292,7 @@ export function selectEl(options, attrs = {}) {
 export function card(titleKey, bodyNode, { headExtra, flush = false, foot } = {}) {
   return el('div', { class: 'card' },
     titleKey ? el('div', { class: 'card-head' },
-      el('h2', { html: biInline(titleKey) }),
+      el('h2', { html: L(titleKey) }),
       headExtra || null,
     ) : null,
     el('div', { class: 'card-body' + (flush ? ' card-body--flush' : '') }, bodyNode),
@@ -298,7 +302,7 @@ export function card(titleKey, bodyNode, { headExtra, flush = false, foot } = {}
 
 export function stat(labelKey, value, { sub, tone } = {}) {
   return el('div', { class: 'stat' + (tone ? ` stat--${tone}` : '') },
-    el('div', { class: 'stat-label', html: biInline(labelKey) }),
+    el('div', { class: 'stat-label', html: L(labelKey) }),
     el('div', { class: 'stat-value', text: value }),
     sub ? el('div', { class: 'stat-sub', html: sub }) : null,
   );

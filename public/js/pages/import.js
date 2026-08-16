@@ -11,17 +11,21 @@
 // ---------------------------------------------------------------------------
 
 import {
-  $, el, esc, biInline, T, es, en, initShell, pageHeader, setPageTitle,
-  money, parseMoney, parseQty, parseRate, parseDate, today, addDays, loadAll,
-  peekCounter, setCounter, numericPart, parseCSV, sniffDelimiter, toast,
-  confirmDialog, db, doc, writeBatch, collection, serverTimestamp,
+  $, el, esc, L, T, initShell, pageHeader, setPageTitle, money, parseMoney,
+  parseQty, parseRate, parseDate, today, addDays, loadAll, peekCounter,
+  setCounter, numericPart, parseCSV, sniffDelimiter, toast, confirmDialog,
+  db, doc, writeBatch, collection, serverTimestamp,
 } from '../app.js';
 import {
   blankCustomer, blankItem, blankDoc, blankPayment, customerSearchBlob,
   itemSearchBlob, derivePaymentStatus,
 } from '../model.js';
-import { field, card, selectEl } from '../components.js';
-import { invalidate as invalidateStore } from '../store.js';
+import {
+  field, card, selectEl,
+} from '../components.js';
+import {
+  invalidate as invalidateStore,
+} from '../store.js';
 
 setPageTitle('nav_import');
 const { settings } = await initShell('import.html');
@@ -30,7 +34,14 @@ const page = $('#page');
 page.append(pageHeader('imp_title', []));
 
 // ===========================================================================
-// Field definitions per target
+// Field definitions per target.
+//
+// The third entry in each row is the list of CSV header names that map onto
+// that field. Spanish spellings are kept in those lists on purpose: they are
+// not UI text, they are tolerance for whatever a ten-year-old export happens to
+// contain. Every guess is shown for review before anything is written, so a bad
+// match costs a click rather than a bad import — and a header this list does not
+// recognise just needs mapping by hand.
 // ===========================================================================
 
 const TARGETS = {
@@ -195,7 +206,7 @@ function renderSteps() {
       class: 'step' + (state.step === n ? ' is-active' : state.step > n ? ' is-done' : ''),
     },
       el('span', { class: 'step-num', text: String(n) }),
-      el('span', { html: biInline(key) }),
+      el('span', { html: L(key) }),
     ));
   }
 }
@@ -217,20 +228,19 @@ function renderChooseTarget() {
     list.append(el('button', {
       class: 'btn btn-default', type: 'button',
       style: 'min-height:64px;justify-content:flex-start;text-align:left',
-      html: biInline(cfg.labelKey),
+      html: L(cfg.labelKey),
       onclick: () => { state.target = key; state.step = 2; renderStep(); },
     }));
   }
 
   bodyHost.append(card('imp_what', el('div', {},
     el('p', { class: 'text-small text-muted mb-2', html:
-      'Importe en este orden: clientes, artículos, facturas, pagos. Así las facturas encuentran a sus clientes. ' +
-      '<span class="bi-en-inline">Import in this order: customers, items, invoices, payments — that way invoices find their customers.</span>' }),
+      'Import in this order: customers, items, invoices, payments — that way invoices find their customers.' }),
     list,
   )));
 
   bodyHost.append(el('p', { class: 'text-small text-muted', html:
-    `${es('imp_group_hint')} <span class="bi-en-inline">${en('imp_group_hint')}</span>` }));
+    `${T('imp_group_hint')}` }));
 }
 
 // ---- Step 2 ---------------------------------------------------------------
@@ -256,17 +266,17 @@ function renderChooseFile() {
       renderStep();
     } catch (err) {
       console.error(err);
-      status.innerHTML = 'No se pudo leer el archivo. <span class="bi-en-inline">Could not read the file.</span>';
+      status.innerHTML = 'Could not read the file.';
     }
   });
 
   bodyHost.append(card('imp_file', el('div', {},
     el('p', { class: 'text-small text-muted mb-2', html:
-      `${T('imp_what')}: <strong>${biInline(TARGETS[state.target].labelKey)}</strong>` }),
+      `${T('imp_what')}: <strong>${L(TARGETS[state.target].labelKey)}</strong>` }),
     fileInput,
     status,
     el('div', { class: 'mt-2' },
-      el('button', { class: 'btn btn-default', type: 'button', html: biInline('act_back'),
+      el('button', { class: 'btn btn-default', type: 'button', html: L('act_back'),
         onclick: () => { state.step = 1; renderStep(); } }),
     ),
   )));
@@ -274,16 +284,15 @@ function renderChooseFile() {
   bodyHost.append(card(null, el('div', {},
     el('p', { html:
       '<strong>Cómo exportar desde Express Invoice</strong> ' +
-      '<span class="bi-en-inline">How to export from Express Invoice</span>' }),
+      'How to export from Express Invoice' }),
     el('ol', { style: 'margin:6px 0 0;padding-left:20px;line-height:1.9' },
-      el('li', { html: 'Abra la lista (Facturas, Clientes, Artículos…). <span class="bi-en-inline">Open the list you want.</span>' }),
-      el('li', { html: 'Use <em>File → Export</em> y elija CSV. <span class="bi-en-inline">Use File → Export and choose CSV.</span>' }),
-      el('li', { html: 'Para facturas, incluya las líneas de detalle. <span class="bi-en-inline">For invoices, include the detail lines.</span>' }),
-      el('li', { html: 'Guarde el archivo y súbalo aquí. <span class="bi-en-inline">Save the file and upload it here.</span>' }),
+      el('li', { html: 'Open the list you want.' }),
+      el('li', { html: 'Use <em>File → Export</em>Use File → Export and choose CSV.' }),
+      el('li', { html: 'For invoices, include the detail lines.' }),
+      el('li', { html: 'Save the file and upload it here.' }),
     ),
     el('p', { class: 'text-small text-muted mt-1', html:
-      'Se aceptan comas, punto y coma o tabulaciones; el separador se detecta solo. ' +
-      '<span class="bi-en-inline">Commas, semicolons or tabs all work — the separator is detected for you.</span>' }),
+      'Commas, semicolons or tabs all work — the separator is detected for you.' }),
   )));
 }
 
@@ -354,9 +363,9 @@ function renderMapping() {
 
   const table = el('table', { class: 'map-table' });
   table.append(el('thead', {}, el('tr', {},
-    el('th', { html: biInline('imp_map') }),
-    el('th', { html: 'Columna del archivo <span class="bi-en-inline">File column</span>' }),
-    el('th', { html: 'Ejemplo <span class="bi-en-inline">Sample</span>' }),
+    el('th', { html: L('imp_map') }),
+    el('th', { html: 'File column' }),
+    el('th', { html: 'Sample' }),
   )));
 
   const tb = el('tbody');
@@ -381,7 +390,7 @@ function renderMapping() {
 
     const isLine = fieldName.startsWith('line_');
     tb.append(el('tr', {},
-      el('td', { html: (isLine ? '<span class="text-muted">↳ </span>' : '') + biInline(labelKey) }),
+      el('td', { html: (isLine ? '<span class="text-muted">↳ </span>' : '') + L(labelKey) }),
       el('td', {}, select),
       sample,
     ));
@@ -390,16 +399,16 @@ function renderMapping() {
 
   bodyHost.append(card('imp_map', el('div', {},
     el('p', { class: 'text-small text-muted mb-2', html:
-      `${es('imp_map_hint')} <span class="bi-en-inline">${en('imp_map_hint')}</span>` }),
+      `${T('imp_map_hint')}` }),
     el('p', { class: 'text-small mb-2', html:
       `<strong>${esc(state.fileName)}</strong> · ${state.rows.length} ${T('imp_rows_found').toLowerCase()}` }),
     el('div', { class: 'table-wrap' }, table),
   )));
 
   bodyHost.append(el('div', { class: 'form-row mb-2' },
-    el('button', { class: 'btn btn-default', type: 'button', html: biInline('act_back'),
+    el('button', { class: 'btn btn-default', type: 'button', html: L('act_back'),
       onclick: () => { state.step = 2; renderStep(); } }),
-    el('button', { class: 'btn btn-primary', type: 'button', html: biInline('imp_preview'),
+    el('button', { class: 'btn btn-primary', type: 'button', html: L('imp_preview'),
       onclick: () => { state.step = 4; renderStep(); } }),
   ));
 }
@@ -425,22 +434,22 @@ function renderPreview() {
   createBox.addEventListener('change', () => { state.createMissingCustomers = createBox.checked; });
 
   const dupSelect = selectEl([
-    { value: 'skip', label: 'Omitir los que ya existen / Skip existing', selected: state.duplicateMode === 'skip' },
-    { value: 'update', label: 'Actualizar los que ya existen / Update existing', selected: state.duplicateMode === 'update' },
-    { value: 'create', label: 'Crear siempre uno nuevo / Always create new', selected: state.duplicateMode === 'create' },
+    { value: 'skip', label: 'Skip existing', selected: state.duplicateMode === 'skip' },
+    { value: 'update', label: 'Update existing', selected: state.duplicateMode === 'update' },
+    { value: 'create', label: 'Always create new', selected: state.duplicateMode === 'create' },
   ]);
   dupSelect.addEventListener('change', () => { state.duplicateMode = dupSelect.value; });
 
   const options = el('div', { class: 'form-row mb-2' },
     el('label', { class: 'check' }, dayFirstBox,
-      el('span', { html: 'Las fechas son día/mes/año <span class="bi-en-inline">Dates are day/month/year</span>' })),
+      el('span', { html: 'Dates are day/month/year' })),
     el('div', { class: 'field', style: 'min-width:300px' },
-      el('label', { class: 'field-label', html: 'Duplicados <span class="bi-en-inline">Duplicates</span>' }),
+      el('label', { class: 'field-label', html: 'Duplicates' }),
       dupSelect),
   );
   if (cfg.grouped || state.target === 'payments') {
     options.append(el('label', { class: 'check' }, createBox,
-      el('span', { html: 'Crear clientes que falten <span class="bi-en-inline">Create missing customers</span>' })));
+      el('span', { html: 'Create missing customers' })));
   }
 
   // Preview table over the first handful of built records.
@@ -459,13 +468,13 @@ function renderPreview() {
     options,
     el('div', { class: 'stat-row', style: 'margin-bottom:14px' },
       el('div', { class: 'stat' },
-        el('div', { class: 'stat-label', html: biInline('imp_rows_found') }),
+        el('div', { class: 'stat-label', html: L('imp_rows_found') }),
         el('div', { class: 'stat-value', text: String(records.length) })),
       el('div', { class: 'stat' + (problems.length ? ' stat--warn' : '') },
-        el('div', { class: 'stat-label', html: biInline('imp_errors') }),
+        el('div', { class: 'stat-label', html: L('imp_errors') }),
         el('div', { class: 'stat-value', text: String(problems.length) })),
       ...(cfg.grouped ? [el('div', { class: 'stat' },
-        el('div', { class: 'stat-label', html: biInline('total') }),
+        el('div', { class: 'stat-label', html: L('total') }),
         el('div', { class: 'stat-value', text: money(records.reduce((s, r) => s + (r.totalCents || 0), 0)) }))] : []),
     ),
     preview,
@@ -479,10 +488,10 @@ function renderPreview() {
   }
 
   bodyHost.append(el('div', { class: 'form-row mb-2' },
-    el('button', { class: 'btn btn-default', type: 'button', html: biInline('act_back'),
+    el('button', { class: 'btn btn-default', type: 'button', html: L('act_back'),
       onclick: () => { state.step = 3; renderStep(); } }),
     el('button', {
-      class: 'btn btn-primary', type: 'button', html: biInline('imp_run'),
+      class: 'btn btn-primary', type: 'button', html: L('imp_run'),
       onclick: () => runImport(records),
       disabled: !records.length,
     }),
@@ -819,9 +828,8 @@ async function runImport(records) {
 
   const ok = await confirmDialog(
     `Se importarán <strong>${records.length}</strong> registros a <strong>${T(cfg.labelKey)}</strong>.` +
-    `<br><span class="bi-en-inline">${records.length} records will be imported.</span>` +
-    '<br><br><span class="text-small text-muted">Haga un respaldo antes si ya tiene datos. ' +
-    '<span class="bi-en-inline">Take a backup first if you already have data.</span></span>',
+    `<br>${records.length} records will be imported.` +
+    '<br><br><span class="text-small text-muted">Take a backup first if you already have data.</span>',
     { okKey: 'imp_run' },
   );
   if (!ok) return;
@@ -844,7 +852,7 @@ async function runImport(records) {
     for (const [key, labelKey] of [['created', 'imp_created'], ['updated', 'imp_updated'],
       ['skipped', 'imp_skipped'], ['errors', 'imp_errors']]) {
       countsHost.append(el('div', { class: 'stat' + (key === 'errors' && counts[key] ? ' stat--warn' : '') },
-        el('div', { class: 'stat-label', html: biInline(labelKey) }),
+        el('div', { class: 'stat-label', html: L(labelKey) }),
         el('div', { class: 'stat-value', text: String(counts[key]) }),
       ));
     }
@@ -1025,20 +1033,20 @@ async function runImport(records) {
 
     bodyHost.append(el('div', { class: 'form-row mt-2' },
       el('button', {
-        class: 'btn btn-primary', type: 'button', html: biInline('nav_import'),
+        class: 'btn btn-primary', type: 'button', html: L('nav_import'),
         onclick: () => { state.step = 1; state.rows = []; state.headers = []; renderStep(); },
       }),
-      el('a', { class: 'btn btn-default', href: `${cfg.collection}.html`, html: biInline(cfg.labelKey) }),
-      el('a', { class: 'btn btn-default', href: 'dashboard.html', html: biInline('nav_home') }),
+      el('a', { class: 'btn btn-default', href: `${cfg.collection}.html`, html: L(cfg.labelKey) }),
+      el('a', { class: 'btn btn-default', href: 'dashboard.html', html: L('nav_home') }),
     ));
 
     toast(`${T('imp_done')} — ${counts.created} ${T('imp_created').toLowerCase()}`, 'ok', 6000);
   } catch (err) {
     console.error('Import failed', err);
     write(`✗ ${err.message}`, 'log-err');
-    toast('La importación se detuvo. <span class="bi-en-inline">The import stopped.</span>', 'err', 8000);
+    toast('The import stopped.', 'err', 8000);
     bodyHost.append(el('button', {
-      class: 'btn btn-default mt-2', type: 'button', html: biInline('act_back'),
+      class: 'btn btn-default mt-2', type: 'button', html: L('act_back'),
       onclick: () => { state.step = 4; renderStep(); },
     }));
   }

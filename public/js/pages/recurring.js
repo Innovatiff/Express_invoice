@@ -1,8 +1,8 @@
 import {
-  $, el, esc, biInline, T, en, initShell, pageHeader, setPageTitle, money,
-  fmtDate, today, addDays, loadAll, loadOne, saveRecord, removeRecord,
-  nextNumber, orderBy, where, onAction, toast, toastKey, confirmDialog,
-  openModal, spinner,
+  $, el, esc, L, T, initShell, pageHeader, setPageTitle, money, fmtDate,
+  today, addDays, loadAll, loadOne, saveRecord, removeRecord, nextNumber,
+  orderBy, where, onAction, toast, toastKey, confirmDialog, openModal,
+  spinner,
 } from '../app.js';
 import {
   blankDoc, recalc, advanceDate, FREQUENCIES, stockDeltasForDoc,
@@ -11,7 +11,9 @@ import {
 import {
   loadCustomers,
 } from '../store.js';
-import { dataTable, selectEl, field, card, customerAutocomplete } from '../components.js';
+import {
+  dataTable, selectEl, field, card, customerAutocomplete,
+} from '../components.js';
 
 setPageTitle('nav_recurring');
 const { settings } = await initShell('recurring.html');
@@ -26,8 +28,7 @@ page.append(pageHeader('nav_recurring', [
 const listHost = el('div', {});
 page.append(el('div', { class: 'card' }, listHost));
 page.append(el('p', { class: 'text-small text-muted', html:
-  'Una plantilla recurrente no crea facturas por su cuenta: usted decide cuándo generarlas. ' +
-  '<span class="bi-en-inline">A recurring template never bills on its own — you decide when to generate.</span>' }));
+  'A recurring template never bills on its own — you decide when to generate.' }));
 
 let templates = [];
 let customers = [];
@@ -44,7 +45,7 @@ async function reload() {
     ]);
   } catch (err) {
     console.error(err);
-    toast('No se pudo cargar. <span class="bi-en-inline">Could not load.</span>', 'err');
+    toast('Could not load.', 'err');
     templates = [];
   }
   render();
@@ -70,15 +71,15 @@ function render() {
         html: (t) => esc(freqLabel(t.frequency)) },
       { key: 'nextDate', labelKey: 'rec_next_date', className: 'nowrap', sortable: false,
         html: (t) => `${esc(fmtDate(t.nextDate))}` +
-          (isDue(t) ? ' <span class="pill pill-overdue">Pendiente <span class="bi-en-inline">Due</span></span>' : '') },
+          (isDue(t) ? ' <span class="pill pill-overdue">Due</span>' : '') },
       { key: 'endDate', labelKey: 'rec_end_date', className: 'nowrap cell-muted', sortable: false,
         html: (t) => (t.endDate ? esc(fmtDate(t.endDate)) : `<span class="cell-muted">${T('never')}</span>`) },
       { key: 'total', labelKey: 'total', className: 'num', sortable: false,
         html: (t) => esc(money(t.template?.totalCents || 0)) },
       { key: 'active', labelKey: 'rec_active', className: 'nowrap', sortable: false,
         html: (t) => (t.active !== false
-          ? `<span class="pill pill-paid">${biInline('rec_active')}</span>`
-          : `<span class="pill pill-void">${biInline('st_cancelled')}</span>`) },
+          ? `<span class="pill pill-paid">${L('rec_active')}</span>`
+          : `<span class="pill pill-void">${L('st_cancelled')}</span>`) },
       { key: 'actions', label: '', className: 'col-narrow', sortable: false,
         html: () => `<span class="text-small text-muted">${T('act_edit')}</span>` },
     ],
@@ -120,7 +121,7 @@ async function openEditor(existing) {
 
   sourceHost.append(
     el('label', { class: 'field-label', html:
-      'Basada en la factura <span class="bi-en-inline">Based on invoice</span>' }),
+      'Based on invoice' }),
     sourceSelect,
     sourceLabel,
   );
@@ -180,7 +181,7 @@ async function openEditor(existing) {
   });
 
   const body = el('div', {},
-    el('div', { class: 'modal-head', html: biInline('nav_recurring') }),
+    el('div', { class: 'modal-head', html: L('nav_recurring') }),
     el('div', { class: 'modal-body' },
       field('customer', customerInput),
       field('line_description', descriptionInput),
@@ -192,16 +193,16 @@ async function openEditor(existing) {
       el('div', { class: 'grid grid-2' },
         field('rec_end_date', endInput),
         el('div', { class: 'field' },
-          el('label', { class: 'field-label', html: biInline('rec_active') }),
-          el('label', { class: 'check' }, activeBox, el('span', { html: biInline('rec_active') })),
+          el('label', { class: 'field-label', html: L('rec_active') }),
+          el('label', { class: 'check' }, activeBox, el('span', { html: L('rec_active') })),
         ),
       ),
     ),
     el('div', { class: 'modal-foot' },
       existing ? el('button', {
-        class: 'btn btn-danger', type: 'button', html: biInline('act_delete'),
+        class: 'btn btn-danger', type: 'button', html: L('act_delete'),
         onclick: async () => {
-          const ok = await confirmDialog(biInline('msg_confirm_delete'), { danger: true, okKey: 'act_delete' });
+          const ok = await confirmDialog(L('msg_confirm_delete'), { danger: true, okKey: 'act_delete' });
           if (!ok) return;
           await removeRecord('recurring', existing.id);
           modal.close();
@@ -210,13 +211,13 @@ async function openEditor(existing) {
         },
       }) : null,
       el('div', { style: 'flex:1' }),
-      el('button', { class: 'btn btn-default', type: 'button', html: biInline('act_cancel'), onclick: () => modal.close() }),
+      el('button', { class: 'btn btn-default', type: 'button', html: L('act_cancel'), onclick: () => modal.close() }),
       el('button', {
-        class: 'btn btn-primary', type: 'button', html: biInline('act_save'),
+        class: 'btn btn-primary', type: 'button', html: L('act_save'),
         onclick: async () => {
           if (!record.customerId) { toast(T('msg_pick_customer'), 'warn'); return; }
           if (!record.template) {
-            toast('Elija una factura de base. <span class="bi-en-inline">Pick a source invoice.</span>', 'warn');
+            toast('Pick a source invoice.', 'warn');
             return;
           }
           record.description = descriptionInput.value;
@@ -231,7 +232,7 @@ async function openEditor(existing) {
             reload();
           } catch (err) {
             console.error(err);
-            toast('No se pudo guardar. <span class="bi-en-inline">Could not save.</span>', 'err');
+            toast('Could not save.', 'err');
           }
         },
       }),
@@ -249,13 +250,13 @@ async function openEditor(existing) {
 async function generateDue() {
   const due = templates.filter(isDue).filter((t) => !t.endDate || t.nextDate <= t.endDate);
   if (!due.length) {
-    toast('No hay recurrentes pendientes. <span class="bi-en-inline">Nothing recurring is due.</span>', 'ok');
+    toast('Nothing recurring is due.', 'ok');
     return;
   }
 
   const ok = await confirmDialog(
     `Se generarán <strong>${due.length}</strong> facturas.` +
-    `<br><span class="bi-en-inline">${due.length} invoices will be generated.</span>` +
+    `<br>${due.length} invoices will be generated.` +
     `<ul style="margin:10px 0 0;padding-left:18px">${due.slice(0, 8)
       .map((t) => `<li>${esc(t.customerName)} — ${esc(money(t.template?.totalCents || 0))}</li>`).join('')}</ul>`,
     { okKey: 'act_run' },
@@ -301,7 +302,7 @@ async function generateDue() {
 
   if (failures.length) {
     toast(`${created} generadas, ${failures.length} con error: ${esc(failures.join(', '))}` +
-      `<span class="bi-en-inline">${created} generated, ${failures.length} failed</span>`, 'err', 8000);
+      `${created} generated, ${failures.length} failed`, 'err', 8000);
   } else {
     toast(`${created} ${T('nav_invoices')} · ${T('msg_saved')}`, 'ok');
   }

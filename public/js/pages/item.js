@@ -1,13 +1,18 @@
 import {
-  $, el, esc, biInline, es, en,
-  initShell, pageHeader, setPageTitle, params,
-  money, moneyInput, parseMoney, parseQty, fmtQty,
-  loadOne, loadAll, saveRecord, removeRecord, orderBy,
-  onAction, toast, toastKey, confirmDialog, trackDirty,
+  $, el, esc, L, T, initShell, pageHeader, setPageTitle, params, money,
+  moneyInput, parseMoney, parseQty, fmtQty, loadOne, loadAll, saveRecord,
+  removeRecord, orderBy, onAction, toast, toastKey, confirmDialog,
+  trackDirty,
 } from '../app.js';
-import { blankItem, itemSearchBlob } from '../model.js';
-import { field, card } from '../components.js';
-import { invalidate as invalidateStore } from '../store.js';
+import {
+  blankItem, itemSearchBlob,
+} from '../model.js';
+import {
+  field, card,
+} from '../components.js';
+import {
+  invalidate as invalidateStore,
+} from '../store.js';
 
 setPageTitle('item');
 await initShell('items.html');
@@ -20,7 +25,7 @@ let record = blankItem();
 if (!isNew) {
   const loaded = await loadOne('items', p.id);
   if (!loaded) {
-    page.append(el('div', { class: 'empty', html: `<p>${biInline('msg_not_found')}</p>` }));
+    page.append(el('div', { class: 'empty', html: `<p>${L('msg_not_found')}</p>` }));
     throw new Error('item not found');
   }
   record = { ...blankItem(), ...loaded, id: p.id };
@@ -84,23 +89,23 @@ page.append(card(null, el('div', {},
   el('div', { class: 'grid grid-3' },
     field('item_code', bind('code', el('input', { type: 'text', class: 'input-mono', autofocus: isNew }))),
     field('item_category', categoryInput),
-    field('item_unit', bind('unit', el('input', { type: 'text', placeholder: 'c/u · ea · hr' }))),
+    field('item_unit', bind('unit', el('input', { type: 'text', placeholder: 'ea · hr · box' }))),
   ),
   field('item_description', descriptionInput,
-    `${es('item_desc_hint')} <span class="bi-en-inline">${en('item_desc_hint')}</span>`),
+    `${T('item_desc_hint')}`),
   el('div', { class: 'grid grid-3' },
     field('item_cost', bind('costCents', el('input', { type: 'text', class: 'input-money', inputmode: 'decimal' }), moneyT)),
     field('item_price', bind('priceCents', el('input', { type: 'text', class: 'input-money', inputmode: 'decimal' }), moneyT)),
     el('div', { class: 'field' },
-      el('label', { class: 'field-label', html: biInline('item_margin') }),
+      el('label', { class: 'field-label', html: L('item_margin') }),
       el('div', { style: 'padding-top:8px' }, marginLabel),
     ),
   ),
   el('div', { class: 'form-row mt-1' },
-    el('label', { class: 'check' }, taxableBox, el('span', { html: biInline('item_taxable') })),
-    el('label', { class: 'check' }, activeBox, el('span', { html: biInline('item_active') })),
+    el('label', { class: 'check' }, taxableBox, el('span', { html: L('item_taxable') })),
+    el('label', { class: 'check' }, activeBox, el('span', { html: L('item_active') })),
     el('label', { class: 'check' }, trackBox,
-      el('span', { html: 'Controlar existencia <span class="bi-en-inline">Track stock</span>' })),
+      el('span', { html: 'Track stock' })),
   ),
   el('div', { class: 'grid grid-2 mt-2' }, stockField, field('notes', bind('notes', el('textarea', { rows: 2 })))),
   datalist,
@@ -115,7 +120,7 @@ loadAll('items', orderBy('category')).then((all) => {
 
 function refreshTitle() {
   const h1 = header.querySelector('h1');
-  h1.innerHTML = `${biInline('line_item')} ${record.code ? `<span class="input-mono" style="font-weight:700">${esc(record.code)}</span>` : ''}`;
+  h1.innerHTML = `${L('line_item')} ${record.code ? `<span class="input-mono" style="font-weight:700">${esc(record.code)}</span>` : ''}`;
 }
 
 function refreshMargin() {
@@ -128,7 +133,7 @@ function refreshMargin() {
 
 async function save({ stay = false, then = null } = {}) {
   if (!String(record.code || '').trim() && !String(record.description || '').trim()) {
-    toast('Escriba un código o una descripción. <span class="bi-en-inline">Enter a code or a description.</span>', 'warn');
+    toast('Enter a code or a description.', 'warn');
     inputs.code.focus();
     return null;
   }
@@ -146,16 +151,15 @@ async function save({ stay = false, then = null } = {}) {
     return id;
   } catch (err) {
     console.error(err);
-    toast('No se pudo guardar. <span class="bi-en-inline">Could not save.</span>', 'err');
+    toast('Could not save.', 'err');
     return null;
   }
 }
 
 async function destroy() {
   const ok = await confirmDialog(
-    `${biInline('msg_confirm_delete')}<br><strong>${esc(record.code || record.description)}</strong>` +
-    '<br><span class="text-small text-muted">Las facturas antiguas conservan su copia de la descripción y el precio. ' +
-    '<span class="bi-en-inline">Past invoices keep their own copy of the description and price.</span></span>',
+    `${L('msg_confirm_delete')}<br><strong>${esc(record.code || record.description)}</strong>` +
+    '<br><span class="text-small text-muted">Past invoices keep their own copy of the description and price.</span>',
     { danger: true, okKey: 'act_delete' },
   );
   if (!ok) return;

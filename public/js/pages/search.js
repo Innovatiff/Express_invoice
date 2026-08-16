@@ -1,10 +1,12 @@
 import {
-  $, el, esc, biInline, es, en, initShell, pageHeader, setPageTitle, params,
-  money, fmtDate, today, loadAll, orderBy, limit, matchesSearch, debounce,
+  $, el, esc, L, T, initShell, pageHeader, setPageTitle, params, money,
+  fmtDate, today, loadAll, orderBy, limit, matchesSearch, debounce,
   spinner, toast,
 } from '../app.js';
 
-import { dataTable, statusPill, card } from '../components.js';
+import {
+  dataTable, statusPill, card,
+} from '../components.js';
 
 setPageTitle('act_search');
 await initShell('');
@@ -18,7 +20,7 @@ page.append(pageHeader('act_search', [], term));
 
 const input = el('input', {
   type: 'search', id: 'list-search', value: term,
-  placeholder: `${es('act_search')} / ${en('act_search')}`,
+  placeholder: `${T('act_search')}`,
   style: 'max-width:420px',
 });
 input.addEventListener('input', debounce(() => {
@@ -32,7 +34,7 @@ input.addEventListener('input', debounce(() => {
 page.append(el('div', { class: 'card' },
   el('div', { class: 'filters' },
     el('div', { class: 'field flex-1' },
-      el('label', { class: 'field-label', html: biInline('act_search') }), input)),
+      el('label', { class: 'field-label', html: L('act_search') }), input)),
 ));
 
 const resultHost = el('div', {});
@@ -56,7 +58,7 @@ try {
   data = { customers, items, invoices, quotes, orders, payments };
 } catch (err) {
   console.error(err);
-  toast('No se pudo cargar. <span class="bi-en-inline">Could not load.</span>', 'err');
+  toast('Could not load.', 'err');
 }
 
 render();
@@ -68,8 +70,7 @@ function render() {
   if (!term.trim()) {
     resultHost.append(el('div', { class: 'card' }, el('div', { class: 'card-body' },
       el('div', { class: 'empty', html:
-        '<p>Escriba para buscar en facturas, cotizaciones, pedidos, pagos, clientes y artículos. ' +
-        '<span class="bi-en-inline">Type to search invoices, quotes, orders, payments, customers and items.</span></p>' }))));
+        '<p>Type to search invoices, quotes, orders, payments, customers and items.</p>' }))));
     return;
   }
 
@@ -158,7 +159,7 @@ function render() {
 
   if (!found) {
     resultHost.append(el('div', { class: 'card' }, el('div', { class: 'card-body' },
-      el('div', { class: 'empty', html: `<p>${biInline('msg_no_results')}</p>` }))));
+      el('div', { class: 'empty', html: `<p>${L('msg_no_results')}</p>` }))));
   }
 }
 

@@ -1,6 +1,6 @@
 import {
-  $, el, esc, biInline, es, en, initShell, pageHeader, setPageTitle, money,
-  loadAll, orderBy, where, limit, onAction, matchesSearch, debounce, toCSV,
+  $, el, esc, L, T, initShell, pageHeader, setPageTitle, money, loadAll,
+  orderBy, where, limit, onAction, matchesSearch, debounce, toCSV,
   downloadFile, toast, spinner, today,
 } from '../app.js';
 
@@ -25,7 +25,7 @@ let filtered = [];
 
 const searchInput = el('input', {
   type: 'search', id: 'list-search',
-  placeholder: `${es('act_search')} / ${en('act_search')}`,
+  placeholder: `${T('act_search')}`,
 });
 searchInput.addEventListener('input', debounce(() => { state.search = searchInput.value; apply(); }, 160));
 
@@ -36,9 +36,9 @@ const countLabel = el('span', { class: 'result-count' });
 
 const filters = el('div', { class: 'filters' },
   el('div', { class: 'field' },
-    el('label', { class: 'field-label', html: biInline('act_search') }), searchInput),
+    el('label', { class: 'field-label', html: L('act_search') }), searchInput),
   el('label', { class: 'check' }, inactiveBox,
-    el('span', { html: 'Mostrar inactivos <span class="bi-en-inline">Show inactive</span>' })),
+    el('span', { html: 'Show inactive' })),
   el('div', { class: 'spacer' }),
   countLabel,
 );
@@ -58,7 +58,7 @@ try {
   }
 } catch (err) {
   console.error(err);
-  toast('No se pudo cargar. <span class="bi-en-inline">Could not load.</span>', 'err');
+  toast('Could not load.', 'err');
 }
 
 apply();
@@ -121,17 +121,17 @@ function render() {
 
 function exportCsv() {
   const header = [
-    `${es('cust_name')} / ${en('cust_name')}`,
-    `${es('cust_company')} / ${en('cust_company')}`,
-    `${es('cust_account')} / ${en('cust_account')}`,
-    `${es('cust_address')} / ${en('cust_address')}`,
-    `${es('cust_city')} / ${en('cust_city')}`,
-    `${es('cust_state')} / ${en('cust_state')}`,
-    `${es('cust_zip')} / ${en('cust_zip')}`,
-    `${es('cust_phone')} / ${en('cust_phone')}`,
-    `${es('cust_mobile')} / ${en('cust_mobile')}`,
-    `${es('cust_email')} / ${en('cust_email')}`,
-    `${es('cust_open_balance')} / ${en('cust_open_balance')}`,
+    `${T('cust_name')}`,
+    `${T('cust_company')}`,
+    `${T('cust_account')}`,
+    `${T('cust_address')}`,
+    `${T('cust_city')}`,
+    `${T('cust_state')}`,
+    `${T('cust_zip')}`,
+    `${T('cust_phone')}`,
+    `${T('cust_mobile')}`,
+    `${T('cust_email')}`,
+    `${T('cust_open_balance')}`,
   ];
   const body = filtered.map((c) => [
     c.name, c.company, c.account, c.address, c.city, c.state, c.zip,

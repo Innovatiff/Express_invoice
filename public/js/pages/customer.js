@@ -1,14 +1,18 @@
 import {
-  $, el, esc, biInline, en, initShell, pageHeader, setPageTitle, params,
-  money, moneyInput, parseMoney, parseRate, fmtDate, loadOne, loadAll,
-  saveRecord, removeRecord, orderBy, where, limit, onAction, toast, toastKey,
+  $, el, esc, L, initShell, pageHeader, setPageTitle, params, money,
+  moneyInput, parseMoney, parseRate, fmtDate, loadOne, loadAll, saveRecord,
+  removeRecord, orderBy, where, limit, onAction, toast, toastKey,
   confirmDialog, trackDirty, spinner,
 } from '../app.js';
 import {
   blankCustomer, customerSearchBlob,
 } from '../model.js';
-import { field, card, dataTable, statusPill } from '../components.js';
-import { invalidate as invalidateStore } from '../store.js';
+import {
+  field, card, dataTable, statusPill,
+} from '../components.js';
+import {
+  invalidate as invalidateStore,
+} from '../store.js';
 
 setPageTitle('customer');
 await initShell('customers.html');
@@ -21,7 +25,7 @@ let record = blankCustomer();
 if (!isNew) {
   const loaded = await loadOne('customers', p.id);
   if (!loaded) {
-    page.append(el('div', { class: 'empty', html: `<p>${biInline('msg_not_found')}</p>` }));
+    page.append(el('div', { class: 'empty', html: `<p>${L('msg_not_found')}</p>` }));
     throw new Error('customer not found');
   }
   record = { ...blankCustomer(), ...loaded, id: p.id };
@@ -100,8 +104,8 @@ const terms = el('div', { class: 'grid grid-3' },
 );
 
 const flags = el('div', { class: 'form-row' },
-  el('label', { class: 'check' }, exemptBox, el('span', { html: biInline('cust_tax_exempt') })),
-  el('label', { class: 'check' }, activeBox, el('span', { html: biInline('item_active') })),
+  el('label', { class: 'check' }, exemptBox, el('span', { html: L('cust_tax_exempt') })),
+  el('label', { class: 'check' }, activeBox, el('span', { html: L('item_active') })),
 );
 
 const notes = bind('notes', el('textarea', { rows: 3 }));
@@ -144,16 +148,16 @@ async function renderHistory(host) {
 
   host.append(el('div', { class: 'stat-row' },
     el('div', { class: 'stat' + (openBalance > 0 ? ' stat--warn' : '') },
-      el('div', { class: 'stat-label', html: biInline('cust_open_balance') }),
+      el('div', { class: 'stat-label', html: L('cust_open_balance') }),
       el('div', { class: 'stat-value', text: money(openBalance) })),
     el('div', { class: 'stat' },
-      el('div', { class: 'stat-label', html: biInline('cust_total_sales') }),
+      el('div', { class: 'stat-label', html: L('cust_total_sales') }),
       el('div', { class: 'stat-value', text: money(totalSales) })),
     el('div', { class: 'stat' },
-      el('div', { class: 'stat-label', html: biInline('cust_last_sale') }),
+      el('div', { class: 'stat-label', html: L('cust_last_sale') }),
       el('div', { class: 'stat-value', text: lastSale ? fmtDate(lastSale) : '—' })),
     el('div', { class: 'stat' },
-      el('div', { class: 'stat-label', html: biInline('nav_invoices') }),
+      el('div', { class: 'stat-label', html: L('nav_invoices') }),
       el('div', { class: 'stat-value', text: String(invoices.length) })),
   ));
 
@@ -207,12 +211,12 @@ async function renderHistory(host) {
 
 function refreshTitle() {
   const h1 = header.querySelector('h1');
-  h1.innerHTML = `${biInline('customer')} ${record.name ? `<span style="font-weight:700">${esc(record.name)}</span>` : ''}`;
+  h1.innerHTML = `${L('customer')} ${record.name ? `<span style="font-weight:700">${esc(record.name)}</span>` : ''}`;
 }
 
 async function save({ stay = false } = {}) {
   if (!String(record.name || '').trim() && !String(record.company || '').trim()) {
-    toast('Escriba un nombre. <span class="bi-en-inline">Enter a name.</span>', 'warn');
+    toast('Enter a name.', 'warn');
     inputs.name.focus();
     return null;
   }
@@ -229,7 +233,7 @@ async function save({ stay = false } = {}) {
     return id;
   } catch (err) {
     console.error(err);
-    toast(`No se pudo guardar. <span class="bi-en-inline">Could not save.</span>`, 'err');
+    toast(`Could not save.`, 'err');
     return null;
   }
 }
@@ -237,10 +241,9 @@ async function save({ stay = false } = {}) {
 async function destroy() {
   const open = await loadAll('invoices', where('customerId', '==', record.id), limit(1));
   const warn = open.length
-    ? '<br><span class="text-red">Este cliente tiene facturas. Considere marcarlo inactivo. ' +
-      '<span class="bi-en-inline">This customer has invoices. Consider marking them inactive instead.</span></span>'
+    ? '<br><span class="text-red">This customer has invoices. Consider marking them inactive instead.</span>'
     : '';
-  const ok = await confirmDialog(`${biInline('msg_confirm_delete')}<br><strong>${esc(record.name)}</strong>${warn}`,
+  const ok = await confirmDialog(`${L('msg_confirm_delete')}<br><strong>${esc(record.name)}</strong>${warn}`,
     { danger: true, okKey: 'act_delete' });
   if (!ok) return;
   await removeRecord('customers', record.id);

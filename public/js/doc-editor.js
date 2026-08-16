@@ -10,22 +10,23 @@
 // ---------------------------------------------------------------------------
 
 import {
-  $, el, esc, biInline, T, es, en, initShell, pageHeader, setPageTitle,
-  params, money, moneyInput, parseMoney, parseQty, fmtQty, parseRate, today,
-  addDays, loadOne, saveRecord, removeRecord, loadAll, nextNumber,
-  peekCounter, setCounter, formatNumber, numericPart, onAction, toast,
-  toastKey, confirmDialog, openModal, trackDirty, query, where, limit,
-  spinner,
+  $, el, esc, L, T, initShell, pageHeader, setPageTitle, params, money,
+  moneyInput, parseMoney, parseQty, fmtQty, parseRate, today, addDays,
+  loadOne, saveRecord, removeRecord, loadAll, nextNumber, peekCounter,
+  setCounter, formatNumber, numericPart, onAction, toast, toastKey,
+  confirmDialog, openModal, trackDirty, query, where, limit, spinner,
 } from './app.js';
 import {
   DOC_TYPES, blankDoc, blankLine, recalc, statusKey, attachCustomer,
   convertDocument, blankCustomer, customerSearchBlob, stockDeltasForDoc,
   applyStockDeltas, QUOTE_STATUSES, ORDER_STATUSES,
 } from './model.js';
-import { loadCustomers, loadItems, findCustomer, invalidate as invalidateStore } from './store.js';
 import {
-  statusPill, customerAutocomplete, itemAutocomplete,
-  field, card, selectEl,
+  loadCustomers, loadItems, findCustomer, invalidate as invalidateStore,
+} from './store.js';
+import {
+  statusPill, customerAutocomplete, itemAutocomplete, field, card,
+  selectEl,
 } from './components.js';
 
 export async function mountDocEditor(type) {
@@ -44,7 +45,7 @@ export async function mountDocEditor(type) {
   try {
     [customers, items] = await Promise.all([loadCustomers(), loadItems()]);
   } catch {
-    toast(biInline('msg_offline'), 'err');
+    toast(L('msg_offline'), 'err');
   }
 
   // ---- Load or create the document ------------------------------------------
@@ -91,7 +92,7 @@ export async function mountDocEditor(type) {
     const loaded = await loadOne(cfg.collection, p.id);
     if (!loaded) {
       page.innerHTML = '';
-      page.append(el('div', { class: 'empty', html: `<p>${biInline('msg_not_found')}</p>` }));
+      page.append(el('div', { class: 'empty', html: `<p>${L('msg_not_found')}</p>` }));
       return;
     }
     doc_ = { ...blankDoc(type, settings), ...loaded, id: p.id };
@@ -139,7 +140,7 @@ export async function mountDocEditor(type) {
     // --- Customer ---
     const custInput = el('input', {
       type: 'text', id: 'f-customer', value: doc_.customerName || '',
-      placeholder: `${es('customer')} / ${en('customer')}`,
+      placeholder: `${T('customer')}`,
     });
     const custField = field('customer', custInput);
     left.append(custField);
@@ -213,7 +214,7 @@ export async function mountDocEditor(type) {
 
     const row1 = el('div', { class: 'grid grid-2' },
       field(cfg.numberKey, numberInput,
-        isNew && counterPreview ? `${es('set_numbering_hint')} <span class="bi-en-inline">${en('set_numbering_hint')}</span>` : ''),
+        isNew && counterPreview ? `${T('set_numbering_hint')}` : ''),
       field('date', dateInput_),
     );
     right.append(row1);
@@ -279,8 +280,8 @@ export async function mountDocEditor(type) {
     right.append(el('div', { class: 'grid grid-2' },
       field('status', statusControl),
       el('div', { class: 'field' },
-        el('label', { class: 'field-label', html: biInline('tax') }),
-        el('label', { class: 'check' }, exemptBox, el('span', { html: biInline('cust_tax_exempt') })),
+        el('label', { class: 'field-label', html: L('tax') }),
+        el('label', { class: 'check' }, exemptBox, el('span', { html: L('cust_tax_exempt') })),
       ),
     ));
 
@@ -295,13 +296,13 @@ export async function mountDocEditor(type) {
     const table = el('table', { class: 'lines-table' });
     table.append(el('thead', {},
       el('tr', {},
-        el('th', { class: 'col-code', html: biInline('line_code') }),
-        el('th', { html: biInline('line_description') }),
-        el('th', { class: 'col-qty num', html: biInline('line_qty') }),
-        el('th', { class: 'col-price num', html: biInline('line_price') }),
-        el('th', { class: 'col-disc num', html: biInline('line_discount') }),
-        el('th', { class: 'col-tax mid', html: biInline('line_taxable') }),
-        el('th', { class: 'col-amount num', html: biInline('line_amount') }),
+        el('th', { class: 'col-code', html: L('line_code') }),
+        el('th', { html: L('line_description') }),
+        el('th', { class: 'col-qty num', html: L('line_qty') }),
+        el('th', { class: 'col-price num', html: L('line_price') }),
+        el('th', { class: 'col-disc num', html: L('line_discount') }),
+        el('th', { class: 'col-tax mid', html: L('line_taxable') }),
+        el('th', { class: 'col-amount num', html: L('line_amount') }),
         el('th', { class: 'col-act' }),
       ),
     ));
@@ -546,7 +547,7 @@ export async function mountDocEditor(type) {
     const left = el('div', {},
       field('notes', notes),
       field('private_notes', privateNotes,
-        `${es('private_notes_hint')} <span class="bi-en-inline">${en('private_notes_hint')}</span>`),
+        `${T('private_notes_hint')}`),
       field('footer_message', footerMsg),
     );
 
@@ -584,9 +585,9 @@ export async function mountDocEditor(type) {
     const table = el('table', { class: 'totals' });
     const tb = el('tbody');
 
-    tb.append(el('tr', {}, el('th', { html: biInline('subtotal') }), el('td', { text: money(doc_.subtotalCents) })));
-    tb.append(el('tr', {}, el('th', { html: biInline('discount') }), discCell));
-    tb.append(el('tr', {}, el('th', { html: biInline('shipping') }), el('td', {}, shipInput)));
+    tb.append(el('tr', {}, el('th', { html: L('subtotal') }), el('td', { text: money(doc_.subtotalCents) })));
+    tb.append(el('tr', {}, el('th', { html: L('discount') }), discCell));
+    tb.append(el('tr', {}, el('th', { html: L('shipping') }), el('td', {}, shipInput)));
 
     if (Number(settings.tax1Rate) > 0) {
       tb.append(el('tr', {},
@@ -600,17 +601,17 @@ export async function mountDocEditor(type) {
     }
     if (settings.taxInclusive && doc_.taxCents > 0) {
       tb.append(el('tr', {},
-        el('th', { class: 'text-small text-muted', html: `${es('set_tax_inclusive')}` }),
+        el('th', { class: 'text-small text-muted', html: `${T('set_tax_inclusive')}` }),
         el('td', { class: 'text-small text-muted', text: money(doc_.taxCents) })));
     }
 
     tb.append(el('tr', { class: 'total-row' },
-      el('th', { html: biInline('total') }), el('td', { text: money(doc_.totalCents) })));
+      el('th', { html: L('total') }), el('td', { text: money(doc_.totalCents) })));
 
     if (cfg.hasPayments) {
-      tb.append(el('tr', {}, el('th', { html: biInline('amount_paid') }), el('td', { text: money(doc_.paidCents) })));
+      tb.append(el('tr', {}, el('th', { html: L('amount_paid') }), el('td', { text: money(doc_.paidCents) })));
       tb.append(el('tr', { class: 'balance-row' },
-        el('th', { html: biInline('balance_due') }), el('td', { text: money(doc_.balanceCents) })));
+        el('th', { html: L('balance_due') }), el('td', { text: money(doc_.balanceCents) })));
     }
 
     table.append(tb);
@@ -637,7 +638,7 @@ export async function mountDocEditor(type) {
   function refreshTitle() {
     const h1 = header.querySelector('h1');
     const num = doc_.number ? ` ${doc_.number}` : '';
-    h1.innerHTML = `${biInline(cfg.titleKey)}<span class="input-mono" style="font-weight:700">${esc(num)}</span>`;
+    h1.innerHTML = `${L(cfg.titleKey)}<span class="input-mono" style="font-weight:700">${esc(num)}</span>`;
   }
 
   // =========================================================================
@@ -701,8 +702,7 @@ export async function mountDocEditor(type) {
       const other = dupes.find((d) => d.id !== doc_.id);
       if (!other) return true;
       return confirmDialog(
-        `El número <strong>${esc(number)}</strong> ya existe. ¿Guardar de todos modos?` +
-        `<br><span class="bi-en-inline">Number ${esc(number)} already exists. Save anyway?</span>`,
+        `Number <strong>${esc(number)}</strong> already exists. Save anyway?`,
       );
     } catch {
       return true; // never block a save because a lookup failed
@@ -778,7 +778,7 @@ export async function mountDocEditor(type) {
       return id;
     } catch (err) {
       console.error('Save failed', err);
-      toast(`No se pudo guardar. <span class="bi-en-inline">Could not save.</span><br><small>${esc(err.message || '')}</small>`, 'err', 7000);
+      toast(`Could not save.<br><small>${esc(err.message || '')}</small>`, 'err', 7000);
       return null;
     }
   }
@@ -802,18 +802,16 @@ export async function mountDocEditor(type) {
     }
     const customer = doc_.customerId ? await findCustomer(doc_.customerId) : null;
     const to = customer?.email || '';
-    const label = `${es(cfg.titleKey)} / ${en(cfg.titleKey)} ${doc_.number}`;
+    const label = `${T(cfg.titleKey)} ${doc_.number}`;
     const body = [
       `${customer?.name || doc_.customerName},`,
       '',
-      `Adjunto encontrará ${es(cfg.titleKey).toLowerCase()} ${doc_.number} por ${money(doc_.totalCents)}.`,
-      `Please find ${en(cfg.titleKey).toLowerCase()} ${doc_.number} for ${money(doc_.totalCents)} attached.`,
+      `Please find ${T(cfg.titleKey).toLowerCase()} ${doc_.number} for ${money(doc_.totalCents)} attached.`,
       '',
       settings.businessName || '',
     ].join('\n');
     location.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(label)}&body=${encodeURIComponent(body)}`;
-    toast('Abra la vista de impresión y guarde como PDF para adjuntarla. ' +
-      '<span class="bi-en-inline">Open the print view and save as PDF to attach it.</span>', 'ok', 6000);
+    toast('Open the print view and save as PDF to attach it.', 'ok', 6000);
   }
 
   async function goPayment() {
@@ -845,7 +843,7 @@ export async function mountDocEditor(type) {
 
   async function toggleVoid() {
     if (!doc_.voided) {
-      const ok = await confirmDialog(biInline('msg_confirm_void'), { danger: true, okKey: 'act_void' });
+      const ok = await confirmDialog(L('msg_confirm_void'), { danger: true, okKey: 'act_void' });
       if (!ok) return;
     }
     doc_.voided = !doc_.voided;
@@ -856,9 +854,9 @@ export async function mountDocEditor(type) {
 
   async function destroy() {
     const ok = await confirmDialog(
-      `${biInline('msg_confirm_delete')}<br><strong>${esc(doc_.number)}</strong> — ${money(doc_.totalCents)}` +
+      `${L('msg_confirm_delete')}<br><strong>${esc(doc_.number)}</strong> — ${money(doc_.totalCents)}` +
       (doc_.paidCents > 0
-        ? `<br><span class="text-red">Esta factura tiene pagos aplicados. <span class="bi-en-inline">This invoice has payments applied.</span></span>`
+        ? `<br><span class="text-red">This invoice has payments applied.</span>`
         : ''),
       { danger: true, okKey: 'act_delete' },
     );
@@ -874,7 +872,7 @@ export async function mountDocEditor(type) {
       location.href = cfg.listPage;
     } catch (err) {
       console.error(err);
-      toast('No se pudo eliminar. <span class="bi-en-inline">Could not delete.</span>', 'err');
+      toast('Could not delete.', 'err');
     }
   }
 
@@ -888,7 +886,7 @@ export async function mountDocEditor(type) {
     const addressInput = el('textarea', { rows: 2 });
 
     form.append(
-      el('div', { class: 'modal-head', html: biInline('act_new_customer') }),
+      el('div', { class: 'modal-head', html: L('act_new_customer') }),
       el('div', { class: 'modal-body' },
         field('cust_name', nameInput),
         el('div', { class: 'grid grid-2' },
@@ -900,9 +898,9 @@ export async function mountDocEditor(type) {
     );
 
     const foot = el('div', { class: 'modal-foot' },
-      el('button', { class: 'btn btn-default', type: 'button', html: biInline('act_cancel'), onclick: () => modal.close() }),
+      el('button', { class: 'btn btn-default', type: 'button', html: L('act_cancel'), onclick: () => modal.close() }),
       el('button', {
-        class: 'btn btn-primary', type: 'button', html: biInline('act_save'),
+        class: 'btn btn-primary', type: 'button', html: L('act_save'),
         onclick: async () => {
           const name = nameInput.value.trim();
           if (!name) { nameInput.focus(); return; }
@@ -929,7 +927,7 @@ export async function mountDocEditor(type) {
             toastKey('msg_saved');
           } catch (err) {
             console.error(err);
-            toast('No se pudo crear el cliente. <span class="bi-en-inline">Could not create customer.</span>', 'err');
+            toast('Could not create customer.', 'err');
           }
         },
       }),

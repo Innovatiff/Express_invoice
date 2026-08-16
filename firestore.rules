@@ -7,8 +7,8 @@ rules_version = '2';
 // shop owner). There are no roles and no permission matrix.
 //
 // HARDENING (recommended, do this right after you create the owner account):
-//   1. Sign in once, open Settings / Configuración — your UID is shown at the
-//      bottom of the page.
+//   1. Sign in once and open Settings — your UID is shown at the bottom of
+//      the page.
 //   2. Paste it into OWNER_UID below.
 //   3. Deploy:  firebase deploy --only firestore:rules
 //

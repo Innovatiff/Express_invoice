@@ -1,12 +1,14 @@
 import {
-  $, el, esc, biInline, T, es, en,
-  initShell, pageHeader, setPageTitle, params,
-  money, fmtDate, today, monthStart, yearStart,
-  loadAll, orderBy, limit,
-  onAction, matchesSearch, debounce, toCSV, downloadFile, toast, spinner,
+  $, el, esc, L, T, initShell, pageHeader, setPageTitle, params, money,
+  fmtDate, today, monthStart, yearStart, loadAll, orderBy, limit, onAction,
+  matchesSearch, debounce, toCSV, downloadFile, toast, spinner,
 } from '../app.js';
-import { PAYMENT_METHODS } from '../model.js';
-import { dataTable, sortRows, selectEl } from '../components.js';
+import {
+  PAYMENT_METHODS,
+} from '../model.js';
+import {
+  dataTable, sortRows, selectEl,
+} from '../components.js';
 
 const PAGE_SIZE = 400;
 
@@ -36,7 +38,7 @@ let filtered = [];
 
 const searchInput = el('input', {
   type: 'search', id: 'list-search', value: state.search,
-  placeholder: `${es('act_search')} / ${en('act_search')}`,
+  placeholder: `${T('act_search')}`,
 });
 searchInput.addEventListener('input', debounce(() => { state.search = searchInput.value; apply(); }, 160));
 
@@ -71,15 +73,15 @@ const tableHost = el('div', {});
 page.append(el('div', { class: 'card' },
   el('div', { class: 'filters' },
     el('div', { class: 'field' },
-      el('label', { class: 'field-label', html: biInline('act_search') }), searchInput),
+      el('label', { class: 'field-label', html: L('act_search') }), searchInput),
     el('div', { class: 'field' },
-      el('label', { class: 'field-label', html: biInline('pay_method') }), methodSelect),
+      el('label', { class: 'field-label', html: L('pay_method') }), methodSelect),
     el('div', { class: 'field' },
-      el('label', { class: 'field-label', html: biInline('rep_period') }), rangeSelect),
+      el('label', { class: 'field-label', html: L('rep_period') }), rangeSelect),
     el('div', { class: 'field' },
-      el('label', { class: 'field-label', html: biInline('date_from') }), fromInput),
+      el('label', { class: 'field-label', html: L('date_from') }), fromInput),
     el('div', { class: 'field' },
-      el('label', { class: 'field-label', html: biInline('date_to') }), toInput),
+      el('label', { class: 'field-label', html: L('date_to') }), toInput),
     el('div', { class: 'spacer' }),
     countLabel,
   ),
@@ -92,7 +94,7 @@ try {
   rows = await loadAll('payments', orderBy('date', 'desc'), limit(PAGE_SIZE));
 } catch (err) {
   console.error(err);
-  toast('No se pudo cargar. <span class="bi-en-inline">Could not load.</span>', 'err');
+  toast('Could not load.', 'err');
 }
 
 apply();
@@ -138,7 +140,7 @@ function render() {
       { key: 'applied', labelKey: 'pay_applied_to', sortable: false, className: 'cell-muted',
         html: (r) => (r.allocations || []).length
           ? esc((r.allocations || []).map((a) => a.invoiceNumber).filter(Boolean).join(', '))
-          : `<span class="pill pill-credit">${biInline('st_credit')}</span>` },
+          : `<span class="pill pill-credit">${L('st_credit')}</span>` },
       { key: 'amountCents', labelKey: 'amount', className: 'num',
         html: (r) => `<strong>${esc(money(r.amountCents))}</strong>`,
         footer: (list) => esc(money(list.reduce((s, r) => s + (Number(r.amountCents) || 0), 0))) },
@@ -156,19 +158,19 @@ function render() {
 
   if (rows.length >= PAGE_SIZE) {
     tableHost.append(el('div', { class: 'card-foot text-small text-muted', html:
-      `Mostrando los ${PAGE_SIZE} pagos más recientes. <span class="bi-en-inline">Showing the ${PAGE_SIZE} most recent payments.</span>` }));
+      `Showing the ${PAGE_SIZE} most recent payments.` }));
   }
 }
 
 function exportCsv() {
   const header = [
-    `${es('payment_number')} / ${en('payment_number')}`,
-    `${es('date')} / ${en('date')}`,
-    `${es('customer')} / ${en('customer')}`,
-    `${es('pay_method')} / ${en('pay_method')}`,
-    `${es('reference')} / ${en('reference')}`,
-    `${es('pay_applied_to')} / ${en('pay_applied_to')}`,
-    `${es('amount')} / ${en('amount')}`,
+    `${T('payment_number')}`,
+    `${T('date')}`,
+    `${T('customer')}`,
+    `${T('pay_method')}`,
+    `${T('reference')}`,
+    `${T('pay_applied_to')}`,
+    `${T('amount')}`,
   ];
   const body = filtered.map((r) => [
     r.number, r.date, r.customerName, methodLabel(r.method), r.reference,

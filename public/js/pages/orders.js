@@ -1,3 +1,5 @@
-import { mountDocList } from '../doc-list.js';
+import {
+  mountDocList,
+} from '../doc-list.js';
 
 mountDocList('order');

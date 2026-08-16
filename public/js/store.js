@@ -6,8 +6,12 @@
 // desktop app felt. Lists are fetched once per page load.
 // ---------------------------------------------------------------------------
 
-import { loadAll, orderBy } from './app.js';
-import { customerSearchBlob, itemSearchBlob, customerLabel } from './model.js';
+import {
+  loadAll, orderBy,
+} from './app.js';
+import {
+  customerSearchBlob, itemSearchBlob, customerLabel,
+} from './model.js';
 
 let customersPromise = null;
 let itemsPromise = null;
