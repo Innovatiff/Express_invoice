@@ -1,5 +1,5 @@
 import {
-  $, el, L, T, initShell, pageHeader, setPageTitle, parseRate, today,
+  $, el, esc, L, T, initShell, pageHeader, setPageTitle, parseRate, today,
   saveSettings, loadAll, peekCounter, setCounter, COUNTER_DEFAULTS,
   onAction, toast, toastKey, trackDirty, downloadFile, formatNumber,
 } from '../app.js';
@@ -58,7 +58,7 @@ logoInput.addEventListener('change', async () => {
     markDirty();
   } catch (err) {
     console.error(err);
-    toast('Could not read the image.', 'err');
+    toast(esc(err.message || 'Could not read the image.'), 'err', 6000);
   }
 });
 
@@ -304,28 +304,44 @@ async function backup() {
   }
 }
 
-/**
- * Logos live inside the settings document, so they have to stay small —
- * Firestore caps a document at 1 MB and a phone photo would blow past that.
- */
+// The logo is the only binary this app holds, and it is deliberately kept
+// inside the settings document rather than in Cloud Storage. A shop logo
+// scaled to letterhead size is a few tens of kilobytes; standing up a storage
+// bucket, its own rules and an upload/download path for one small image would
+// be more moving parts than the thing is worth.
+//
+// The trade is that it has to fit: Firestore caps a document at 1 MB, so the
+// image is scaled down and re-encoded until it comfortably does.
+const LOGO_TARGET_BYTES = 400_000;
+const LOGO_MAX_BYTES = 700_000;
+
 function downscaleImage(file, maxWidth, maxHeight) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onerror = () => reject(new Error('read failed'));
+    reader.onerror = () => reject(new Error('The file could not be read.'));
     reader.onload = () => {
       const img = new Image();
-      img.onerror = () => reject(new Error('decode failed'));
+      img.onerror = () => reject(new Error('That file is not an image the browser can read.'));
       img.onload = () => {
         const scale = Math.min(1, maxWidth / img.width, maxHeight / img.height);
         const w = Math.max(1, Math.round(img.width * scale));
         const h = Math.max(1, Math.round(img.height * scale));
         const canvas = el('canvas', { width: w, height: h });
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, w, h);
-        // PNG keeps a transparent background; fall back to JPEG when the PNG
-        // comes out too heavy for a Firestore field.
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+
+        // PNG first, because it keeps a transparent background. Fall back to
+        // progressively cheaper JPEG only when the PNG is too heavy — which
+        // happens with photographic logos, not with flat artwork.
         let out = canvas.toDataURL('image/png');
-        if (out.length > 480000) out = canvas.toDataURL('image/jpeg', 0.85);
+        for (const quality of [0.85, 0.6]) {
+          if (out.length <= LOGO_TARGET_BYTES) break;
+          out = canvas.toDataURL('image/jpeg', quality);
+        }
+
+        if (out.length > LOGO_MAX_BYTES) {
+          reject(new Error('That image is too large even after resizing. Try a simpler logo.'));
+          return;
+        }
         resolve(out);
       };
       img.src = reader.result;

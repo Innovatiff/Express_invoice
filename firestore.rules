@@ -1,41 +1,75 @@
 rules_version = '2';
 
 // ---------------------------------------------------------------------------
-// Express Invoice (replacement) — Firestore security rules
+// Express Invoicing — Firestore security rules
 //
 // This is a SINGLE-USER system. Exactly one Firebase Auth account exists (the
-// shop owner). There are no roles and no permission matrix.
+// shop owner). There are no roles and no permission matrix, so these rules have
+// exactly one job: let that one account in, and nobody else.
 //
-// HARDENING (recommended, do this right after you create the owner account):
-//   1. Sign in once and open Settings — your UID is shown at the bottom of
-//      the page.
-//   2. Paste it into OWNER_UID below.
-//   3. Deploy:  firebase deploy --only firestore:rules
+// ---------------------------------------------------------------------------
+// SET THIS UP IN THREE STEPS
+// ---------------------------------------------------------------------------
 //
-// Until OWNER_UID is set, any authenticated account can read/write. Because
-// the app has no sign-up screen and Email/Password sign-up should be disabled
-// in the Firebase console (Authentication -> Settings -> User actions), that
-// is still a closed system — but pinning the UID is the belt-and-braces
-// version and takes ten seconds.
+// 1. Firebase console -> Authentication -> Sign-in method: enable
+//    Email/Password. Then Users -> Add user, and create the owner account.
+//
+// 2. Authentication -> Settings -> User actions: turn OFF "Enable create
+//    (sign-up)". This is the switch that stops the internet from making
+//    accounts on your project. Do not skip it.
+//
+// 3. Fill in ownerEmail() or ownerUid() below and deploy:
+//       firebase deploy --only firestore:rules
+//
+//    Use ownerEmail() if you are setting this up before your first sign-in —
+//    you already know the address. Use ownerUid() once you have signed in and
+//    copied the UID from the Settings screen; it is the stronger of the two,
+//    because a UID cannot be changed while an email address can be.
+//
+//    Setting either one is enough. Setting both requires both to match.
+//
+// If both are left blank, any signed-in account can read and write. With
+// sign-up disabled that is still a closed system, but it is one console
+// misclick away from not being one — so fill one in.
 // ---------------------------------------------------------------------------
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Replace '' with your UID, e.g. 'a1B2c3D4e5F6g7H8i9J0kLmNoP1'
+    // e.g. 'you@example.com'  — leave '' to skip this check
+    function ownerEmail() {
+      return '';
+    }
+
+    // e.g. 'a1B2c3D4e5F6g7H8i9J0kLmNoP1'  — leave '' to skip this check
     function ownerUid() {
       return '';
     }
 
-    function isOwner() {
-      return request.auth != null
-        && (ownerUid() == '' || request.auth.uid == ownerUid());
+    function signedIn() {
+      return request.auth != null && request.auth.uid != null;
     }
 
-    // Business settings, document counters, saved report presets.
+    function isOwner() {
+      return signedIn()
+        && (ownerUid() == '' || request.auth.uid == ownerUid())
+        && (ownerEmail() == '' || request.auth.token.email == ownerEmail());
+    }
+
+    // -----------------------------------------------------------------------
+    // The collections this app actually uses.
+    //
+    // They are listed one by one rather than with a wildcard so that a typo in
+    // a collection name fails loudly instead of quietly creating a stray
+    // collection that nothing reads.
+    // -----------------------------------------------------------------------
+
+    // Business details, logo, tax rates, defaults.
     match /settings/{docId} {
       allow read, write: if isOwner();
     }
+
+    // Next number / prefix / padding per document type.
     match /counters/{docId} {
       allow read, write: if isOwner();
     }
@@ -68,12 +102,12 @@ service cloud.firestore {
       allow read, write: if isOwner();
     }
 
-    // Import batch bookkeeping (lets a half-finished migration be resumed).
+    // Import batch bookkeeping, so a half-finished migration can be resumed.
     match /imports/{docId} {
       allow read, write: if isOwner();
     }
 
-    // Anything not listed above is denied.
+    // Anything not named above is denied outright, signed in or not.
     match /{document=**} {
       allow read, write: if false;
     }

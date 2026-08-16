@@ -4,9 +4,10 @@ firebase-debug.log
 firestore-debug.log
 ui-debug.log
 database-debug.log
+storage-debug.log
+pubsub-debug.log
 
-# Local Firebase project binding (each machine sets its own)
-# .firebaserc is committed with a placeholder; override locally if needed.
+# .firebaserc is committed — it names the project this app deploys to.
 
 # OS / editor
 .DS_Store

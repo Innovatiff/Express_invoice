@@ -1,0 +1,41 @@
+rules_version = '2';
+
+// ---------------------------------------------------------------------------
+// Cloud Storage — deny everything.
+//
+// THIS APP DOES NOT USE CLOUD STORAGE, and you do not need to enable it.
+// Nothing in Express Invoicing uploads a file:
+//
+//   * the business logo is scaled down and stored inside the settings document
+//     in Firestore, so it travels with the rest of the settings;
+//   * backups download to your computer as JSON;
+//   * CSV imports are read in the browser and never uploaded;
+//   * invoices become PDFs through the browser's own Print dialog.
+//
+// The `storageBucket` line in firebase-config.js is just part of the standard
+// config block Firebase hands out. It does not create a bucket, and leaving it
+// there costs nothing.
+//
+// This file exists for one situation: if Storage ever gets switched on in the
+// console — deliberately, or by clicking through a setup screen — a bucket
+// appears with default rules that may allow access for a while. These rules
+// shut it. Deploying them is a safe no-op otherwise.
+//
+// TO USE IT, add this to firebase.json:
+//
+//     "storage": { "rules": "storage.rules" }
+//
+// then:  firebase deploy --only storage
+//
+// Do NOT add that block before Storage is enabled — `firebase deploy` fails
+// when it is told to deploy rules for a bucket that does not exist. That is
+// why it is not in firebase.json already.
+// ---------------------------------------------------------------------------
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

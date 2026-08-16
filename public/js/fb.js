@@ -8,20 +8,20 @@
 
 import {
   initializeApp,
-} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+} from 'https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js';
 
 import {
   getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
   setPersistence, browserLocalPersistence, browserSessionPersistence,
   sendPasswordResetEmail, updatePassword, connectAuthEmulator,
-} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+} from 'https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js';
 
 import {
   getFirestore, collection, doc, getDoc, getDocs, getCountFromServer,
   setDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, limit,
   startAfter, runTransaction, writeBatch, serverTimestamp, increment,
   documentId, connectFirestoreEmulator,
-} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+} from 'https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js';
 
 import {
   firebaseConfig, USE_EMULATORS,

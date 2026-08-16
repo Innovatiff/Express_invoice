@@ -17,36 +17,39 @@ runs in a browser instead of on one Windows machine.
 
 ## Setting it up
 
-### 1. Create the Firebase project
+The project config for `expressinvoice-b91c4` is already filled in
+(`public/js/firebase-config.js` and `.firebaserc`), so what is left is the
+console switches and one deploy.
 
-1. Create a project at <https://console.firebase.google.com>.
-2. **Build → Authentication → Sign-in method**: enable **Email/Password**.
-3. **Build → Authentication → Users**: add the owner's account.
-4. **Authentication → Settings → User actions**: turn **off** "Enable create
-   (sign-up)". There is one account and there should stay one account.
-5. **Build → Firestore Database**: create a database in production mode.
-6. **Project settings → General → Your apps**: add a Web app and copy the
-   config object.
+### 1. Firebase console
 
-### 2. Point the app at it
+1. **Build → Authentication → Sign-in method**: enable **Email/Password**.
+2. **Build → Authentication → Users → Add user**: create the owner's account.
+3. **Authentication → Settings → User actions**: turn **off** "Enable create
+   (sign-up)". This is the switch that stops the internet from making accounts
+   on your project. Do not skip it.
+4. **Build → Firestore Database → Create database**, in production mode. Pick
+   the region closest to the shop; it cannot be changed later.
 
-Paste the config into `public/js/firebase-config.js`:
+You do **not** need to enable Cloud Storage — see
+[Cloud Storage](#cloud-storage-not-needed) below.
 
-```js
-export const firebaseConfig = {
-  apiKey: '…',
-  authDomain: 'your-project.firebaseapp.com',
-  projectId: 'your-project',
-  storageBucket: 'your-project.appspot.com',
-  messagingSenderId: '…',
-  appId: '…',
-};
+### 2. Lock the database to your account
+
+Open `firestore.rules` and fill in **one** of the two functions near the top:
+
+```
+function ownerEmail() { return 'you@example.com'; }   // known before first sign-in
+function ownerUid()   { return 'a1B2c3...'; }         // shown in Settings after sign-in
 ```
 
-These values are not secrets — they identify the project, they do not grant
-access to it. Access is controlled by Auth plus `firestore.rules`.
+Either is enough. `ownerUid()` is the stronger of the two — a UID cannot be
+changed, an email address can — but `ownerEmail()` is the one you can set
+before you have ever signed in. Setting both requires both to match.
 
-Set your project id in `.firebaserc` as well.
+Leave them both blank and any signed-in account can read and write. With
+sign-up disabled that is still closed, but it is one console misclick away from
+not being — so fill one in.
 
 ### 3. Deploy
 
@@ -56,20 +59,19 @@ firebase login
 firebase deploy
 ```
 
-That publishes hosting, the security rules and the Firestore indexes together.
+That publishes hosting, the Firestore rules and the Firestore indexes together.
 
-### 4. Lock the database to your account
+### About the API key in `firebase-config.js`
 
-Sign in, open **Settings**, and copy the UID shown at the bottom. Paste it into
-`ownerUid()` in `firestore.rules`, then:
+It is committed on purpose. A Firebase web config identifies the project; it
+does not grant access to it, and every Firebase web app ships these values in
+plain JavaScript that anyone can read. The data is protected by Email/Password
+sign-in with sign-up disabled, plus `firestore.rules`.
 
-```bash
-firebase deploy --only firestore:rules
-```
-
-Until you do this, any authenticated account can read and write. Since sign-up
-is disabled there is only one such account, but pinning the UID takes ten
-seconds and closes the gap properly.
+One thing worth doing once, in **Google Cloud Console → APIs & Services →
+Credentials**: restrict the key to your Hosting domains (HTTP referrers). That
+does not protect the data — the rules do that — but it stops anyone else
+pointing their own page at your key and spending your quota.
 
 ### Running locally
 
@@ -78,6 +80,53 @@ firebase emulators:start          # then set USE_EMULATORS = true
 # or, against the real project, any static server:
 python3 -m http.server 5000 --directory public
 ```
+
+---
+
+## Cloud Storage: not needed
+
+**This app does not use Cloud Storage, and you do not need to enable it.**
+Nothing here uploads a file:
+
+| What you might expect to need a bucket | Where it actually goes |
+| --- | --- |
+| Business logo | Scaled down and stored inside the `settings/business` Firestore document |
+| Backups | Downloaded to your computer as JSON |
+| CSV imports | Read in the browser, never uploaded |
+| Invoice PDFs | Produced by the browser's own Print dialog |
+
+The `storageBucket` line in `firebase-config.js` is just part of the standard
+config block Firebase hands out. It does not create a bucket, and leaving it
+there costs nothing.
+
+The logo is worth a word, since it is the one binary the app holds. It is
+resized to fit 600×240, encoded as PNG, and re-encoded as progressively cheaper
+JPEG only if the PNG comes out heavy. Typical result is a few tens of
+kilobytes, comfortably inside the 1 MB Firestore document limit, and it travels
+with the rest of the settings instead of needing a bucket, its own rules and an
+upload/download path of its own. An image that still will not fit is rejected
+with a message rather than failing the save.
+
+`storage.rules` in the repo is a deny-all ruleset, kept for one situation: if
+Storage ever does get switched on — deliberately, or by clicking through a
+setup screen — a bucket appears with default rules that may permit access.
+Deploying this shuts it. To use it, add to `firebase.json`:
+
+```json
+"storage": { "rules": "storage.rules" }
+```
+
+then `firebase deploy --only storage`. Do **not** add that block before Storage
+is enabled: `firebase deploy` fails when told to deploy rules for a bucket that
+does not exist, which is why it is not in `firebase.json` already.
+
+### If you ever do want Storage
+
+The realistic reason would be attaching photos to invoices — a picture of a
+cracked screen against a repair job. That would mean enabling Storage,
+replacing `storage.rules` with an owner-only ruleset shaped like the Firestore
+one, and adding upload plus display to the line grid. It is a real feature, not
+a config change, and it is out of scope today.
 
 ---
 
@@ -169,7 +218,8 @@ public/
     app.css        screen styles
     print.css      the paper layout
   js/
-    fb.js          the only file that imports the Firebase SDK
+    fb.js          the only file that imports the Firebase SDK (v12.17.1,
+                   pinned here so the version is a one-line change)
     firebase-config.js
     i18n.js        every visible label, in one dictionary
     app.js         auth, chrome, money, dates, shortcuts, Firestore helpers
