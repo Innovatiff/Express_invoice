@@ -1,0 +1,78 @@
+# ---------------------------------------------------------------------------
+# Netlify configuration.
+#
+# The one line that matters is `publish`. The app lives in public/, but Netlify
+# publishes the repository root unless told otherwise — which is what produces
+# a "Page not found" at the site root, because there is no index.html up there.
+#
+# There is no build step. Netlify copies public/ and serves it.
+#
+# Firebase Hosting is configured too (firebase.json), and the two do not
+# conflict: Firestore and Auth are reached over HTTPS from whatever origin the
+# page is served from, so the app works identically on either host. Pick one.
+# ---------------------------------------------------------------------------
+
+[build]
+  publish = "public"
+
+# ---------------------------------------------------------------------------
+# Caching
+#
+# Every file here is unversioned — app.js is always app.js — so nothing may be
+# cached hard. Without this a deploy can leave a browser running last week's
+# JavaScript against this week's data, which is the sort of bug that wastes an
+# afternoon. `must-revalidate` lets the browser keep its copy but forces it to
+# check first, so unchanged files still come back as a cheap 304.
+# ---------------------------------------------------------------------------
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+    # This app is never embedded anywhere, so refuse framing outright.
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=()"
+
+# ---------------------------------------------------------------------------
+# Content-Security-Policy — commented out on purpose.
+#
+# The hosts below are the ones this app actually talks to, and no inline script
+# is used anywhere (index.html loads js/pages/index.js like every other page),
+# so this policy should hold. But a CSP that is slightly wrong fails as a blank
+# screen or a sign-in that silently never completes, and that is a bad surprise
+# on a shop's live invoicing system.
+#
+# If you want it: uncomment, deploy to a Netlify branch/preview URL first, and
+# check that you can sign in, save an invoice and print one. Then promote it.
+#
+#   'unsafe-inline' under style-src is required: the screens set style="..."
+#   attributes directly. Script has no such escape hatch and does not need one.
+# ---------------------------------------------------------------------------
+
+# [[headers]]
+#   for = "/*"
+#   [headers.values]
+#     Content-Security-Policy = """
+#       default-src 'self';
+#       script-src 'self' https://www.gstatic.com;
+#       style-src 'self' 'unsafe-inline';
+#       img-src 'self' data:;
+#       font-src 'self';
+#       connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com;
+#       frame-src https://expressinvoice-b91c4.firebaseapp.com;
+#       base-uri 'none';
+#       form-action 'self';
+#       object-src 'none';
+#       frame-ancestors 'none'"""
+
+# ---------------------------------------------------------------------------
+# No catch-all redirect on purpose.
+#
+# This is a multi-page app: invoices.html, customer.html and the rest are real
+# files. The usual SPA rule (/* -> /index.html 200) would swallow genuine 404s
+# and bounce every typo'd URL to the dashboard, hiding mistakes instead of
+# showing them.
+# ---------------------------------------------------------------------------

@@ -51,15 +51,61 @@ Leave them both blank and any signed-in account can read and write. With
 sign-up disabled that is still closed, but it is one console misclick away from
 not being — so fill one in.
 
-### 3. Deploy
+### 3. Deploy the rules
 
 ```bash
 npm install -g firebase-tools
 firebase login
+firebase deploy --only firestore
+```
+
+The rules and indexes have to come from here whichever host serves the pages.
+
+### 4. Deploy the app
+
+The pages are static files, so any host works. Two are set up:
+
+**Netlify** (`netlify.toml`)
+
+Netlify publishes the repository root by default, but this app lives in
+`public/` — that mismatch is what shows "Page not found" at the site root.
+`netlify.toml` sets `publish = "public"`, so it is fixed as soon as Netlify
+builds a commit that contains that file.
+
+Two settings to check in the Netlify UI:
+
+- **Site configuration → Build & deploy → Branches → Production branch** must
+  name a branch that exists. This repository has no `main`; if Netlify is
+  pointed at one, it has nothing to deploy and every URL 404s.
+- **Publish directory** should read `public`, or be left empty so
+  `netlify.toml` supplies it.
+
+There is deliberately no SPA catch-all redirect. This is a multi-page app —
+`invoices.html` and the rest are real files — so a `/* → /index.html` rule
+would swallow genuine 404s and bounce typos to the dashboard.
+
+**Firebase Hosting** (`firebase.json`)
+
+```bash
 firebase deploy
 ```
 
-That publishes hosting, the Firestore rules and the Firestore indexes together.
+Publishes hosting, rules and indexes in one go.
+
+Either is fine, and they do not conflict: Firestore and Auth are reached over
+HTTPS from whatever origin the page came from, so the app behaves identically
+on both.
+
+### 5. Tell Firebase about the domain you are using
+
+Whatever host you land on, add its domain in **Firebase console →
+Authentication → Settings → Authorized domains** — e.g.
+`expressinvoice.netlify.app`. Email/password sign-in largely works without it,
+but password-reset links and anything OAuth-shaped do not, and the failure is
+silent enough to waste an afternoon.
+
+If you restricted the API key to HTTP referrers (see below), **add the same
+domain there too** — otherwise the app will load and then fail every request.
 
 ### About the API key in `firebase-config.js`
 
@@ -228,8 +274,11 @@ public/
     store.js       cached customer and item lists
     doc-editor.js  the invoice/quote/order editor (all three screens)
     doc-list.js    the invoice/quote/order list (all three screens)
-    pages/*.js     one entry point per screen
-firestore.rules  firestore.indexes.json  firebase.json
+    pages/*.js     one entry point per screen (index.js included, so no
+                   page carries an inline <script>)
+firestore.rules  firestore.indexes.json  storage.rules
+firebase.json    Firebase Hosting + rules + indexes
+netlify.toml     Netlify: publish directory, caching, security headers
 ```
 
 ### Conventions that matter

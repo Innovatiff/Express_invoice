@@ -15,17 +15,6 @@
       </div>
     </div>
   </div>
-  <script type="module">
-    import { auth, onAuthStateChanged } from './js/fb.js';
-    import { isConfigured } from './js/firebase-config.js';
-
-    if (!isConfigured()) {
-      location.replace('login.html');
-    } else {
-      onAuthStateChanged(auth, (user) => {
-        location.replace(user ? 'dashboard.html' : 'login.html');
-      });
-    }
-  </script>
+  <script type="module" src="js/pages/index.js"></script>
 </body>
 </html>
