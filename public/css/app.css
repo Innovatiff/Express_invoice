@@ -920,3 +920,242 @@ kbd {
 
 /* Anything marked print-only stays hidden on screen. */
 .print-only { display: none; }
+
+/* ==========================================================================
+   Workflow home screen
+
+   The Express Invoice flow chart, rebuilt: CSS Grid places the boxes, and
+   js/workflow.js measures where they landed and draws the connectors into an
+   SVG layer underneath. Below the stacking breakpoint the grid collapses to a
+   single column and the connectors switch themselves off, because a flow chart
+   drawn down a phone screen is just a list with extra lines.
+   ========================================================================== */
+
+.wf { margin-bottom: 22px; }
+
+.wf-stage { position: relative; --wf-stacked: 0; }
+
+.wf-links {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 0;
+}
+.wf-link {
+  stroke: var(--border-strong);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.wf-arrowhead { fill: var(--border-strong); }
+
+.wf-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 30px 26px;
+  align-items: stretch;
+}
+
+/* ---- A box ---- */
+
+.wf-node {
+  position: relative;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+}
+.wf-node:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+  border-color: var(--border-strong);
+}
+.wf-node:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(26, 95, 180, .16);
+}
+
+.wf-node-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 15px 16px 16px;
+  height: 100%;
+  color: var(--text);
+  border-radius: inherit;
+}
+.wf-node-main:hover { text-decoration: none; }
+
+.wf-node-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  margin-bottom: 8px;
+  border-radius: 9px;
+  background: var(--surface-3);
+  color: var(--text-2);
+  font-size: 16px;
+  line-height: 1;
+}
+.wf-node-label {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -.005em;
+}
+.wf-node-value {
+  margin-top: 6px;
+  font-size: 21px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
+  line-height: 1.1;
+}
+.wf-node-caption {
+  font-size: 11.5px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+/* The pipeline reads left to right, so the boxes on it carry a coloured spine
+   and the inputs feeding into it stay quiet. */
+.wf-node--flow { border-top: 3px solid var(--primary); }
+.wf-node--flow .wf-node-icon { background: var(--primary-light); color: var(--primary); }
+
+.wf-node--input { background: var(--surface-2); }
+
+/* Invoices is where the money is, so it is the one box that reads as filled. */
+.wf-node--hero {
+  background: linear-gradient(160deg, #1b4f8f 0%, #12243d 100%);
+  border-color: #12243d;
+}
+.wf-node--hero .wf-node-main { color: #fff; }
+.wf-node--hero .wf-node-icon { background: rgba(255, 255, 255, .16); color: #fff; }
+.wf-node--hero .wf-node-caption { color: rgba(255, 255, 255, .65); }
+.wf-node--hero .wf-node-new {
+  background: rgba(255, 255, 255, .18);
+  border-color: transparent;
+  color: #fff;
+}
+.wf-node--hero .wf-node-new:hover { background: rgba(255, 255, 255, .3); }
+
+/* ---- The "+ new" affordance ---- */
+
+.wf-node-new {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 17px;
+  line-height: 1;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity .14s, background .14s, color .14s;
+}
+.wf-node:hover .wf-node-new,
+.wf-node:focus-within .wf-node-new,
+.wf-node-new:focus-visible { opacity: 1; }
+.wf-node-new:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  text-decoration: none;
+}
+
+/* Touch has no hover, so the button has to be there all along. */
+@media (hover: none) {
+  .wf-node-new { opacity: 1; }
+}
+
+/* ---- Alert pill ---- */
+
+.wf-node-alert {
+  position: absolute;
+  left: 14px;
+  bottom: -9px;
+  z-index: 2;
+  padding: 2px 9px;
+  border-radius: 10px;
+  background: var(--red);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+}
+.wf-node--input .wf-node-alert { background: var(--green); }
+
+/* ---- Tools strip ---- */
+
+.wf-tools {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 34px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+.wf-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 15px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: background .12s, border-color .12s;
+}
+.wf-tool:hover {
+  background: var(--surface-3);
+  border-color: var(--border-strong);
+  text-decoration: none;
+}
+.wf-tool-icon { color: var(--muted); font-size: 15px; }
+
+/* ==========================================================================
+   Workflow, narrow screens
+   ========================================================================== */
+
+@media (max-width: 1080px) {
+  .wf-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  /* Grid placement is authored for the five-column diagram; let it flow. */
+  .wf-node { grid-row: auto !important; grid-column: auto !important; }
+  .wf-stage { --wf-stacked: 1; }
+  .wf-links { display: none; }
+  .wf-node-alert { position: static; display: inline-block; margin-top: 8px; box-shadow: none; }
+  .wf-node-main { padding-bottom: 14px; }
+}
+
+@media (max-width: 640px) {
+  .wf-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .wf-node-value { font-size: 18px; }
+}
+
+.section-heading {
+  margin: 26px 0 12px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}

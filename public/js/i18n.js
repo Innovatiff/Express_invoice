@@ -310,6 +310,20 @@ export const DICT = {
   login_reset_sent: 'A password reset link is on its way.',
   login_failed: 'Wrong email or password.',
 
+  // ---- Workflow home screen ----
+  wf_title: 'Where would you like to start?',
+  wf_sub: 'Quote to order, order to invoice, invoice to payment.',
+  wf_on_file: 'on file',
+  wf_in_catalog: 'in catalog',
+  wf_open: 'open',
+  wf_outstanding: 'outstanding',
+  wf_this_month: 'this month',
+  wf_with_balance: 'with a balance',
+  wf_due: 'due',
+  wf_ready: 'ready',
+  wf_tools: 'Tools',
+  wf_today: 'Today at a glance',
+
   // ---- Dashboard ----
   dash_today: 'Today',
   dash_month_sales: 'Sales This Month',

@@ -225,6 +225,30 @@ Take a backup first if the database already has data:
 
 ---
 
+## The home screen
+
+Express Invoice opened onto a flow chart of the sales cycle rather than a menu,
+so this does too. A quote becomes an order, an order becomes an invoice, an
+invoice gets paid, and the payment lands on a statement — with customers, items
+and recurring templates feeding in from above.
+
+Two things the paper version could not do: every box is a link to that screen,
+with a `+` in the corner that starts a new one, and every box carries its own
+live figure — open quotes, money outstanding, payments taken this month — so
+the diagram doubles as the morning status check. Anything overdue or ready to
+generate shows as a pill on the box concerned.
+
+The boxes are placed with CSS Grid; `js/workflow.js` then measures where they
+landed and draws the connectors into an SVG layer beneath, redrawing on resize.
+Hand-placed lines would drift the moment a label wrapped or a font differed.
+Below 1080px the grid reflows and the connectors switch themselves off, because
+a flow chart drawn down a narrow screen is a list with extra lines.
+
+Underneath the diagram sits what a picture cannot carry: this month's totals,
+anything overdue, and the last few invoices and payments.
+
+---
+
 ## Keyboard shortcuts
 
 The full list lives on the **Keyboard Shortcuts** screen, or press `?`.
@@ -272,6 +296,8 @@ public/
     model.js       document totals, statuses, payments, statements
     components.js  autocomplete, tables, cards, status pills
     store.js       cached customer and item lists
+    workflow.js    the home-screen flow chart: boxes in a grid, connectors
+                   drawn as SVG from their measured positions
     doc-editor.js  the invoice/quote/order editor (all three screens)
     doc-list.js    the invoice/quote/order list (all three screens)
     pages/*.js     one entry point per screen (index.js included, so no
