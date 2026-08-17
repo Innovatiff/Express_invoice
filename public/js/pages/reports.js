@@ -23,6 +23,7 @@ const REPORTS = [
   { id: 'item', labelKey: 'rep_sales_by_item' },
   { id: 'unpaid', labelKey: 'rep_unpaid' },
   { id: 'aged', labelKey: 'rep_aged' },
+  { id: 'quiet', labelKey: 'rep_quiet' },
   { id: 'payments', labelKey: 'rep_payments' },
   { id: 'tax', labelKey: 'rep_tax' },
   { id: 'quotes', labelKey: 'rep_quote_conversion' },
@@ -32,6 +33,8 @@ const state = {
   report: REPORTS.some((r) => r.id === p.report) ? p.report : 'summary',
   from: p.from || yearStart(),
   to: p.to || today(),
+  // How long a customer has to have been silent before this report lists them.
+  quietMonths: Number(p.quiet) > 0 ? Number(p.quiet) : 3,
 };
 
 let lastRows = [];
@@ -53,6 +56,17 @@ const fromInput = el('input', { type: 'date', value: state.from });
 const toInput = el('input', { type: 'date', value: state.to });
 fromInput.addEventListener('change', () => { state.from = fromInput.value; run(); });
 toInput.addEventListener('change', () => { state.to = toInput.value; run(); });
+
+const QUIET_CHOICES = [1, 2, 3, 4, 5, 6, 9, 12];
+const quietSelect = selectEl(QUIET_CHOICES.map((n) => ({
+  value: String(n), labelKey: `rep_months_${n}`, selected: n === state.quietMonths,
+})));
+quietSelect.addEventListener('change', () => {
+  state.quietMonths = Number(quietSelect.value) || 3;
+  run();
+});
+const quietField = el('div', { class: 'field hidden' },
+  el('label', { class: 'field-label', html: L('rep_no_payment_in') }), quietSelect);
 
 const periodSelect = selectEl([
   { value: 'year', labelKey: 'rep_this_year' },
@@ -96,6 +110,7 @@ page.append(el('div', { class: 'card' },
       el('label', { class: 'field-label', html: L('date_from') }), fromInput),
     el('div', { class: 'field' },
       el('label', { class: 'field-label', html: L('date_to') }), toInput),
+    quietField,
   ),
 ));
 
@@ -132,10 +147,16 @@ await run();
 async function run() {
   resultHost.innerHTML = '';
   resultHost.append(spinner());
+  // Only one report asks how long someone has been silent, so the control for
+  // it only appears there rather than sitting inert on every other report.
+  quietField.classList.toggle('hidden', state.report !== 'quiet');
+
   const url = new URL(location.href);
   url.searchParams.set('report', state.report);
   url.searchParams.set('from', state.from);
   url.searchParams.set('to', state.to);
+  if (state.report === 'quiet') url.searchParams.set('quiet', String(state.quietMonths));
+  else url.searchParams.delete('quiet');
   history.replaceState({}, '', url);
 
   try {
@@ -145,6 +166,7 @@ async function run() {
       item: buildByItem,
       unpaid: buildUnpaid,
       aged: buildAged,
+      quiet: buildQuiet,
       payments: buildPayments,
       tax: buildTax,
       quotes: buildQuoteConversion,
@@ -162,14 +184,17 @@ async function run() {
   }
 }
 
-function reportCard(titleKey, tableNode, summaryNode) {
+// `subtitle` overrides the date range in the card header. Reports that answer
+// an "as of today" question rather than a "during this period" one pass their
+// own, since printing a From date that changes nothing only misleads.
+function reportCard(titleKey, tableNode, summaryNode, subtitle) {
   return el('div', {},
     summaryNode || null,
     el('div', { class: 'card' },
       el('div', { class: 'card-head' },
         el('h2', { html: L(titleKey) }),
         el('span', { class: 'text-small text-muted',
-          text: `${fmtDate(state.from)} — ${fmtDate(state.to)}` }),
+          text: subtitle || `${fmtDate(state.from)} — ${fmtDate(state.to)}` }),
       ),
       tableNode,
     ),
@@ -440,6 +465,138 @@ async function buildAged() {
   return reportCard('rep_aged', dataTable({ columns, rows: list }),
     el('p', { class: 'text-small text-muted mb-1',
       html: `Aged as of ${esc(fmtDate(asOf))}.` }));
+}
+
+// ===========================================================================
+// Owing, and gone quiet
+//
+// Aged Receivables ages the invoice; this ages the silence. They are not the
+// same question and can disagree completely: a customer can be ninety days
+// overdue on one invoice and still have paid something last week, and another
+// can owe on an invoice raised recently while not having paid a penny since
+// spring. This one answers "who owes me money and has stopped paying" —
+// including the customers who have never paid at all, who are easy to lose
+// track of precisely because they have no payment history to notice.
+// ===========================================================================
+
+async function buildQuiet() {
+  await ensureData(['invoices', 'payments']);
+  const asOf = state.to || today();
+  const months = Number(state.quietMonths) || 3;
+  const cutoff = addMonths(asOf, -months);
+
+  // Group by customer id where there is one, by name where there is not, so a
+  // customer imported without a link still gets counted rather than vanishing.
+  const keyOf = (r) => r.customerId || r.customerName || '—';
+
+  const byCustomer = new Map();
+  for (const inv of invoices) {
+    if (!live(inv) || (Number(inv.balanceCents) || 0) <= 0) continue;
+    if (inv.date && inv.date > asOf) continue;
+    const key = keyOf(inv);
+    const row = byCustomer.get(key) || {
+      id: inv.customerId || '', name: inv.customerName || '—',
+      balance: 0, openCount: 0, oldest: '', oldestNumber: '',
+      lastPayDate: '', lastPayCents: 0,
+    };
+    row.balance += Number(inv.balanceCents) || 0;
+    row.openCount += 1;
+    if (inv.date && (!row.oldest || inv.date < row.oldest)) {
+      row.oldest = inv.date;
+      row.oldestNumber = inv.number || '';
+    }
+    byCustomer.set(key, row);
+  }
+
+  // The most recent real payment each of them made. A refund is money going
+  // the other way, so it is not a sign of life for this purpose.
+  for (const pay of payments) {
+    if (pay.isRefund) continue;
+    if ((Number(pay.amountCents) || 0) <= 0) continue;
+    const date = pay.date || '';
+    if (!date || date > asOf) continue;
+    const row = byCustomer.get(keyOf(pay));
+    if (!row) continue;
+    if (date > row.lastPayDate) { row.lastPayDate = date; row.lastPayCents = Number(pay.amountCents) || 0; }
+  }
+
+  const list = [...byCustomer.values()]
+    .filter((r) => !r.lastPayDate || r.lastPayDate < cutoff)
+    .map((r) => ({ ...r, silentDays: r.lastPayDate ? daysBetween(r.lastPayDate, asOf) : null }))
+    .sort((a, b) => b.balance - a.balance);
+
+  const owed = list.reduce((s, r) => s + r.balance, 0);
+  const neverPaid = list.filter((r) => !r.lastPayDate);
+  const neverOwed = neverPaid.reduce((s, r) => s + r.balance, 0);
+
+  lastHeader = [T('customer'), T('rep_open_invoices'), T('rep_oldest_unpaid'),
+    T('rep_last_payment'), T('amount'), T('rep_silent_for'), T('balance_due')];
+  lastRows = list.map((r) => [
+    r.name, r.openCount, r.oldest,
+    r.lastPayDate || T('rep_never_paid'),
+    r.lastPayDate ? r.lastPayCents / 100 : '',
+    r.silentDays === null ? '' : r.silentDays,
+    r.balance / 100,
+  ]);
+
+  const summary = el('div', {},
+    el('div', { class: 'stat-row' },
+      el('div', { class: 'stat' + (list.length ? ' stat--warn' : '') },
+        el('div', { class: 'stat-label', html: L('customer') }),
+        el('div', { class: 'stat-value', text: String(list.length) })),
+      el('div', { class: 'stat' },
+        el('div', { class: 'stat-label', html: L('balance_due') }),
+        el('div', { class: 'stat-value', text: money(owed) })),
+      el('div', { class: 'stat' },
+        el('div', { class: 'stat-label', html: L('rep_never_paid') }),
+        el('div', { class: 'stat-value', text: `${neverPaid.length} · ${money(neverOwed)}` })),
+    ),
+    el('p', { class: 'text-small text-muted mb-1', html:
+      `Customers still owing money as of <strong>${esc(fmtDate(asOf))}</strong> whose last payment was `
+      + `before <strong>${esc(fmtDate(cutoff))}</strong> — or who have never paid at all. `
+      + `Biggest balance first.` }),
+  );
+
+  if (!list.length) {
+    return reportCard('rep_quiet', el('div', { class: 'empty' },
+      el('p', { html: `Nobody owing has been silent for ${months} ${months === 1 ? 'month' : 'months'}.` })),
+    summary, `As of ${fmtDate(asOf)} · no payment since ${fmtDate(cutoff)}`);
+  }
+
+  const silentText = (r) => {
+    if (r.silentDays === null) return `<strong class="text-red">${T('rep_never_paid')}</strong>`;
+    const m = Math.floor(r.silentDays / 30);
+    return `<strong>${r.silentDays}</strong> <span class="cell-muted">days</span>`
+      + (m >= 1 ? `<span class="cell-sub">about ${m} ${m === 1 ? 'month' : 'months'}</span>` : '');
+  };
+
+  const columns = [
+    { key: 'name', labelKey: 'customer', sortable: false,
+      html: (r) => (r.id
+        ? `<a href="customer.html?id=${encodeURIComponent(r.id)}">${esc(r.name)}</a>`
+        : esc(r.name)) },
+    { key: 'openCount', labelKey: 'rep_open_invoices', className: 'num', sortable: false,
+      html: (r) => String(r.openCount),
+      footer: (l) => String(l.reduce((s, r) => s + r.openCount, 0)) },
+    { key: 'oldest', labelKey: 'rep_oldest_unpaid', className: 'nowrap', sortable: false,
+      html: (r) => `${esc(fmtDate(r.oldest))}`
+        + (r.oldestNumber ? `<span class="cell-sub input-mono">${esc(r.oldestNumber)}</span>` : '') },
+    { key: 'lastPayDate', labelKey: 'rep_last_payment', className: 'nowrap', sortable: false,
+      html: (r) => (r.lastPayDate
+        ? `${esc(fmtDate(r.lastPayDate))}<span class="cell-sub">${esc(money(r.lastPayCents))}</span>`
+        : `<span class="cell-muted">—</span>`) },
+    { key: 'silent', labelKey: 'rep_silent_for', className: 'nowrap', sortable: false,
+      html: silentText },
+    { key: 'balance', labelKey: 'balance_due', className: 'num', sortable: false,
+      html: (r) => `<strong>${esc(money(r.balance))}</strong>`,
+      footer: (l) => esc(money(l.reduce((s, r) => s + r.balance, 0))) },
+  ];
+
+  return reportCard('rep_quiet', dataTable({
+    columns,
+    rows: list,
+    onRowClick: (r) => { if (r.id) location.href = `statements.html?customer=${encodeURIComponent(r.id)}`; },
+  }), summary, `As of ${fmtDate(asOf)} · no payment since ${fmtDate(cutoff)}`);
 }
 
 // ===========================================================================
