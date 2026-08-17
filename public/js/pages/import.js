@@ -525,8 +525,16 @@ function renderFolderProblem(host, result) {
   const explain = {
     empty: ['That folder has no readable files in it. Check you picked the folder itself rather than the one above it.'],
     unknown: [
-      'The files are readable text, but not in a shape this screen recognises — not key/value lines, not one delimited row per file, not XML or JSON.',
-      'Send me the profile below and I will add a reader for whatever layout they use.',
+      'The files are readable text, but not in a layout this screen recognises — '
+      + 'not key/value lines, not delimited rows, not one value per line, not XML or JSON.',
+      '<strong>First, check the folder.</strong> Pick a folder that holds one kind of '
+      + 'record — Customers, or Invoices — rather than the Express Invoice program folder '
+      + 'itself. A folder with several kinds of file mixed together has no single layout '
+      + 'to find, and the file types listed in the profile below will show if that is what '
+      + 'happened.',
+      'Otherwise the profile below has the answer in it: the opening lines of three real '
+      + 'files, exactly as they are stored. <strong>Send it to me and I will add a reader '
+      + 'for that layout.</strong> Nothing is guessed at from a format nobody has read.',
     ],
     binary: [
       'These are Express Invoice\u2019s own record files, in a format that is not documented publicly.',
@@ -667,7 +675,9 @@ function fileColumnsPanel() {
     };
   });
 
-  const positional = state.headers.some((h) => /^Field \d+$/.test(h));
+  // "Field 3" and "Line 3" are both positional: the file carried no name for
+  // the column, so an example value is the only way to tell what it holds.
+  const positional = state.headers.some((h) => /^(Field|Line) \d+$/.test(h));
 
   const table = el('table', { class: 'map-table cols-table' });
   table.append(el('thead', {}, el('tr', {},
