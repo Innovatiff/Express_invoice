@@ -1088,6 +1088,10 @@ function buildExpressRecords() {
       record.subtotalCents = record.totalCents || 0;
     }
     record.paymentStatus = derivePaymentStatus(record);
+    // The paid figure exactly as Express Invoice had it. Its presence is what
+    // tells a later payment import that these payments are already counted
+    // here, so importing them does not pay the invoice a second time.
+    record.sourcePaidCents = record.paidCents;
     record.importedAt = today();
     record.searchBlob = [
       record.number, record.customerName, record.poNumber, record.salesPerson,
@@ -1473,6 +1477,13 @@ async function runImport(records) {
           if (customer) record.customerId = customer.id;
         }
 
+        // --- Create / update / skip ---
+        // Decided before the allocation below, because whether this payment is
+        // actually written decides whether it may move an invoice balance.
+        const key = normalizeKey(records[i][cfg.keyField]);
+        const existingId = key ? byKey.get(key) : null;
+        const skipping = Boolean(existingId) && state.duplicateMode === 'skip';
+
         // --- Payment allocation ---
         if (state.target === 'payments') {
           const invoice = invoicesByNumber.get(normalizeKey(record._invoiceNumber));
@@ -1482,21 +1493,31 @@ async function runImport(records) {
               invoiceNumber: invoice.number,
               amountCents: record.amountCents,
             }];
-            invoicePaid.set(invoice.id, (invoicePaid.get(invoice.id) || 0) + record.amountCents);
+
+            // Two reasons not to add this to the invoice's paid figure:
+            //
+            // The invoice already counted it. An invoice imported from Express
+            // Invoice carries that program's own AmountPaid, which is the sum
+            // of these very payments — adding them again pays every invoice
+            // twice. sourcePaidCents marks an invoice whose paid figure came
+            // in that way, and it is left exactly as the old program had it.
+            //
+            // Or this payment is not being written at all. A skipped duplicate
+            // must not shift a balance it was already counted against, or a
+            // second run of the same folder quietly overpays everything.
+            if (!skipping && invoice.sourcePaidCents === undefined) {
+              invoicePaid.set(invoice.id, (invoicePaid.get(invoice.id) || 0) + record.amountCents);
+            }
           }
           record.appliedCents = (record.allocations || []).reduce((s, a) => s + a.amountCents, 0);
           record.unappliedCents = record.amountCents - record.appliedCents;
         }
 
-        for (const key of Object.keys(record)) {
-          if (key.startsWith('_')) delete record[key];
+        for (const field of Object.keys(record)) {
+          if (field.startsWith('_')) delete record[field];
         }
 
-        // --- Create / update / skip ---
-        const key = normalizeKey(records[i][cfg.keyField]);
-        const existingId = key ? byKey.get(key) : null;
-
-        if (existingId && state.duplicateMode === 'skip') {
+        if (skipping) {
           counts.skipped += 1;
         } else if (existingId && state.duplicateMode === 'update') {
           batch.set(doc(db, cfg.collection, existingId), { ...record, updatedAt: serverTimestamp() }, { merge: true });
