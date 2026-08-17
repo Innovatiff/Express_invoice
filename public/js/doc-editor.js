@@ -456,7 +456,10 @@ export async function mountDocEditor(type) {
     // when you are on the last one — exactly the desktop grid's behaviour.
     tr.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter') return;
-      if (e.target.tagName === 'TEXTAREA' && !e.ctrlKey) return; // let notes wrap
+      // Enter inside a description belongs to the description: plain Enter wraps
+      // the line, which is how an IMEI gets under a model name, and Ctrl+Enter
+      // is Save & Close everywhere else in the app — so the grid claims neither.
+      if (e.target.tagName === 'TEXTAREA') return;
       e.preventDefault();
       if (index === doc_.lines.length - 1) {
         doc_.lines.push(blankLine());
@@ -916,13 +919,49 @@ export async function mountDocEditor(type) {
         await applyStockDeltas(stockDeltasForDoc({ lines: originalLines }, +1))
           .catch((err) => console.warn('Stock restore skipped', err));
       }
-      await removeRecord(cfg.collection, doc_.id);
+      const deletedId = doc_.id;
+      await removeRecord(cfg.collection, deletedId);
+      if (type === 'invoice' && doc_.paidCents > 0) await releasePayments(deletedId);
       dirty = false;
       toastKey('msg_deleted');
       location.href = cfg.listPage;
     } catch (err) {
       console.error(err);
       toast('Could not delete.', 'err');
+    }
+  }
+
+  /**
+   * Frees any payments that were applied to an invoice that has just been
+   * deleted.
+   *
+   * Without this the allocation outlives the invoice: the payment goes on
+   * reporting the money as applied, to a document that no longer exists, so it
+   * shows neither against an invoice nor as the credit it has become. The money
+   * itself is untouched — only the link to the dead invoice goes, which turns
+   * that part of the payment back into unapplied credit, ready to put against
+   * something real.
+   */
+  async function releasePayments(invoiceId) {
+    try {
+      const payments = doc_.customerId
+        ? await loadAll('payments', where('customerId', '==', doc_.customerId))
+        : await loadAll('payments');
+      for (const payment of payments) {
+        const kept = (payment.allocations || []).filter((a) => a.invoiceId !== invoiceId);
+        if (kept.length === (payment.allocations || []).length) continue;
+        const applied = kept.reduce((sum, a) => sum + (Number(a.amountCents) || 0), 0);
+        await saveRecord('payments', payment.id, {
+          ...payment,
+          allocations: kept,
+          appliedCents: applied,
+          unappliedCents: (Number(payment.amountCents) || 0) - applied,
+        });
+      }
+    } catch (err) {
+      // The invoice is already gone; a failure here leaves a stale link, not
+      // lost money, and must not present itself as a failed delete.
+      console.warn('Could not release payments from the deleted invoice', err);
     }
   }
 

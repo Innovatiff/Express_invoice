@@ -255,8 +255,7 @@ async function generateDue() {
   }
 
   const ok = await confirmDialog(
-    `Se generarán <strong>${due.length}</strong> facturas.` +
-    `<br>${due.length} invoices will be generated.` +
+    `<strong>${due.length}</strong> ${due.length === 1 ? 'invoice' : 'invoices'} will be generated.` +
     `<ul style="margin:10px 0 0;padding-left:18px">${due.slice(0, 8)
       .map((t) => `<li>${esc(t.customerName)} — ${esc(money(t.template?.totalCents || 0))}</li>`).join('')}</ul>`,
     { okKey: 'act_run' },

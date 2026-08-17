@@ -211,7 +211,7 @@ export function recalcLine(line) {
   const qty = parseQty(line.qty);
   const unit = Math.round(Number(line.unitCents) || 0);
   const gross = Math.round(qty * unit);
-  const pct = parseRate(line.discountPct);
+  const pct = Math.min(100, Math.max(0, parseRate(line.discountPct)));
   const disc = pct ? Math.round(gross * pct / 100) : 0;
   line.qty = qty;
   line.unitCents = unit;
@@ -251,7 +251,9 @@ export function recalc(document_, settings) {
   // with it, or the figure this last computed comes straight back as if it had
   // been typed by hand. The editor does exactly that; imports set one or the
   // other and never both.
-  const docPct = parseRate(d.discountPct);
+  // Clamped: a discount below zero is a surcharge and a discount above the
+  // whole invoice is nonsense. Either would have quietly raised a total.
+  const docPct = Math.min(100, Math.max(0, parseRate(d.discountPct)));
   d.discountPct = docPct;
   const discount = docPct
     ? Math.round(subtotal * docPct / 100)
@@ -312,7 +314,12 @@ export function recalc(document_, settings) {
   }
 
   d.paidCents = Math.round(Number(d.paidCents) || 0);
-  d.balanceCents = d.totalCents - d.paidCents;
+  // A voided document owes nothing, including when it had already been paid.
+  // Left as total - paid it showed a negative balance, which then counted
+  // against the receivables total at the foot of the list. What the customer is
+  // owed for a voided invoice belongs on their statement, where the payment
+  // still stands as a credit — not as a negative balance on a dead document.
+  d.balanceCents = d.voided ? 0 : d.totalCents - d.paidCents;
   d.paymentStatus = derivePaymentStatus(d);
   d.searchBlob = docSearchBlob(d);
   return d;
@@ -517,9 +524,18 @@ export async function applyInvoiceDeltas(deltas, settings) {
       const invoice = { id: snap.id, ...snap.data() };
       invoice.paidCents = Math.round(Number(invoice.paidCents) || 0) + entries[i][1];
       if (invoice.paidCents < 0) invoice.paidCents = 0;
-      invoice.balanceCents = Math.round(Number(invoice.totalCents) || 0) - invoice.paidCents;
-      invoice.paymentStatus = derivePaymentStatus(invoice);
+      // Same rule recalc applies: a voided invoice owes nothing, so editing a
+      // payment that had been applied to one cannot revive a negative balance.
+      invoice.balanceCents = invoice.voided
+        ? 0
+        : Math.round(Number(invoice.totalCents) || 0) - invoice.paidCents;
+      // Promote out of draft BEFORE deriving the status, not after. A draft that
+      // has been paid is no longer a draft, and derivePaymentStatus reads
+      // invoice.status — doing this the other way round stamps the invoice
+      // "draft" for good while marking it sent, so a paid invoice sits in the
+      // list looking unissued.
       if (invoice.status === 'draft' && invoice.paidCents > 0) invoice.status = 'sent';
+      invoice.paymentStatus = derivePaymentStatus(invoice);
       tx.update(refs[i], {
         paidCents: invoice.paidCents,
         balanceCents: invoice.balanceCents,

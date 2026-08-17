@@ -121,13 +121,25 @@ export function parseMoney(input) {
   if (!s) return 0;
   const negative = s.includes('-');
   s = s.replace(/-/g, '');
-  const lastComma = s.lastIndexOf(',');
-  const lastDot = s.lastIndexOf('.');
-  if (lastComma > lastDot) {
-    // European style: 1.234,56
-    s = s.replace(/\./g, '').replace(',', '.');
-  } else {
-    s = s.replace(/,/g, '');
+  const commas = (s.match(/,/g) || []).length;
+  const dots = (s.match(/\./g) || []).length;
+
+  if (commas && dots) {
+    // Both present, so whichever comes last is the decimal point: either
+    // 1.234,56 or 1,234.56.
+    if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
+      s = s.replace(/\./g, '').replace(/,([^,]*)$/, '.$1');
+    } else {
+      s = s.replace(/,/g, '');
+    }
+  } else if (commas) {
+    // Only commas. One comma with one or two digits after it is a decimal
+    // ("1,23"); anything else is thousands ("1,234" and "1,234,567"), which
+    // used to come out as $1.23 and $12.35 — a thousand times short.
+    s = commas === 1 && /,\d{1,2}$/.test(s) ? s.replace(',', '.') : s.replace(/,/g, '');
+  } else if (dots > 1) {
+    // "1.234.567" can only be thousands.
+    s = s.replace(/\./g, '');
   }
   const n = parseFloat(s);
   if (!isFinite(n)) return 0;
@@ -809,10 +821,29 @@ export function searchBlob(...parts) {
   return parts.filter(Boolean).join(' ').toLowerCase().slice(0, 1500);
 }
 
+/** "José" -> "jose", so an accent never stands between a name and its search. */
+export function foldAccents(s) {
+  return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+/** True when the text holds anything outside plain ASCII. */
+function hasAccents(s) {
+  return /[^\u0000-\u007f]/.test(s);
+}
+
 export function matchesSearch(blob, term) {
   const words = String(term || '').toLowerCase().trim().split(/\s+/).filter(Boolean);
   if (!words.length) return true;
-  return words.every((w) => blob.includes(w));
+  const haystack = String(blob || '').toLowerCase();
+  if (words.every((w) => haystack.includes(w))) return true;
+
+  // Most of this shop's customers are called things like José Pérez and
+  // Castañeda, and nobody types the accents into a search box. Compare again
+  // with the accents taken off both sides — done second, and only when there
+  // are accents to take off, so the common case costs nothing.
+  if (!hasAccents(haystack) && !words.some(hasAccents)) return false;
+  const folded = foldAccents(haystack);
+  return words.every((w) => folded.includes(foldAccents(w)));
 }
 
 /** Guard against navigating away from an edited form. */
