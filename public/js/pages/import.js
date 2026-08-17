@@ -14,7 +14,7 @@ import {
   $, el, esc, L, T, initShell, pageHeader, setPageTitle, money, parseMoney,
   parseQty, parseRate, parseDate, today, addDays, loadAll, peekCounter,
   setCounter, numericPart, parseCSV, sniffDelimiter, toast, confirmDialog,
-  db, doc, writeBatch, collection, serverTimestamp,
+  downloadFile, db, doc, writeBatch, collection, serverTimestamp,
 } from '../app.js';
 import {
   blankCustomer, blankItem, blankDoc, blankPayment, customerSearchBlob,
@@ -26,6 +26,9 @@ import {
 import {
   invalidate as invalidateStore,
 } from '../store.js';
+import {
+  readFolder, MAX_FILES,
+} from '../folder-import.js';
 
 setPageTitle('nav_import');
 const { settings } = await initShell('import.html');
@@ -248,7 +251,10 @@ function renderChooseFile() {
   // Deliberately unfiltered. Express Invoice keeps its live data in .dat files,
   // and a picker that only offered .csv would hide exactly the files the owner
   // is holding.
-  const fileInput = el('input', { type: 'file', accept: '.csv,.txt,.dat,.tsv,.tab,text/csv,text/plain' });
+  // Both pickers are <input type=file>, so each carries an id: anything selecting
+  // one of them has to say which.
+  const fileInput = el('input', { type: 'file', id: 'pick-file',
+    accept: '.csv,.txt,.dat,.tsv,.tab,text/csv,text/plain' });
   const status = el('p', { class: 'text-small text-muted' });
   const diagnosis = el('div', {});
 
@@ -285,11 +291,76 @@ function renderChooseFile() {
     }
   });
 
+  // ---- The folder route: one .dat per record, thousands of them ----
+  const folderInput = el('input', { type: 'file', id: 'pick-folder' });
+  folderInput.setAttribute('webkitdirectory', '');
+  folderInput.setAttribute('directory', '');
+
+  const folderProgress = el('div', { class: 'progress hidden' }, el('div', { style: 'width:0%' }));
+  const folderStatus = el('p', { class: 'text-small text-muted' });
+
+  folderInput.addEventListener('change', async () => {
+    const files = folderInput.files;
+    if (!files || !files.length) return;
+
+    diagnosis.innerHTML = '';
+    folderProgress.classList.remove('hidden');
+    const bar = folderProgress.firstChild;
+
+    try {
+      const result = await readFolder(files, {
+        onProgress: ({ read, total, phase }) => {
+          bar.style.width = `${total ? Math.round((read / total) * 100) : 0}%`;
+          folderStatus.textContent = phase === 'sampling'
+            ? `Looking at what is in these ${total} files…`
+            : `Reading ${read} of ${total}…`;
+        },
+      });
+
+      folderProgress.classList.add('hidden');
+
+      if (!result.rows.length) {
+        folderStatus.textContent = '';
+        renderFolderProblem(diagnosis, result);
+        return;
+      }
+
+      state.fileName = `${files[0].webkitRelativePath?.split('/')[0] || 'folder'} (${result.stats.parsed} files)`;
+      state.headers = result.headers;
+      state.rows = result.rows;
+      autoMap();
+      state.step = 3;
+      renderStep();
+    } catch (err) {
+      console.error(err);
+      folderProgress.classList.add('hidden');
+      folderStatus.innerHTML = esc(err.message || 'Could not read the folder.');
+    }
+  });
+
   bodyHost.append(card('imp_file', el('div', {},
     el('p', { class: 'text-small text-muted mb-2', html:
       `${T('imp_what')}: <strong>${L(TARGETS[state.target].labelKey)}</strong>` }),
-    fileInput,
-    status,
+
+    el('div', { class: 'pick' },
+      el('div', { class: 'pick-half' },
+        el('div', { class: 'pick-title', text: 'One file' }),
+        el('p', { class: 'text-small text-muted', text:
+          'A CSV exported from Express Invoice, holding every record as a row.' }),
+        fileInput,
+        status,
+      ),
+      el('div', { class: 'pick-half' },
+        el('div', { class: 'pick-title', text: 'A whole folder' }),
+        el('p', { class: 'text-small text-muted', text:
+          'Express Invoice\u2019s own folders, holding one .dat file per record. '
+          + 'Pick the folder and every file inside is read.' }),
+        folderInput,
+        folderProgress,
+        folderStatus,
+      ),
+    ),
+
     el('div', { class: 'mt-2' },
       el('button', { class: 'btn btn-default', type: 'button', html: L('act_back'),
         onclick: () => { state.step = 1; renderStep(); } }),
@@ -442,6 +513,66 @@ const NEXT_STEPS = {
   ],
 };
 
+/**
+ * A folder whose files this screen cannot turn into records. With thousands of
+ * samples of the same record type there is far more to say than about a single
+ * file, so the profile is the deliverable: what every file opens with, whether
+ * the record size is fixed, and where the data actually sits.
+ */
+function renderFolderProblem(host, result) {
+  const { kind, stats, profile } = result;
+
+  const explain = {
+    empty: ['That folder has no readable files in it. Check you picked the folder itself rather than the one above it.'],
+    unknown: [
+      'The files are readable text, but not in a shape this screen recognises — not key/value lines, not one delimited row per file, not XML or JSON.',
+      'Send me the profile below and I will add a reader for whatever layout they use.',
+    ],
+    binary: [
+      'These are Express Invoice\u2019s own record files, in a format that is not documented publicly.',
+      '<strong>If the old program still runs</strong>, exporting CSVs from inside it '
+      + '(<em>File → Export</em>) is much the shorter road, and this screen reads those directly.',
+      '<strong>If it does not</strong>, download the profile below and send it to me. A folder of '
+      + 'this many files is far more revealing than any single one: it shows what every record '
+      + 'opens with, whether the size is fixed, and which positions hold the data. That is usually '
+      + 'enough to write a converter.',
+    ],
+  }[kind] || ['These files could not be read as records.'];
+
+  const body = el('div', {},
+    el('p', { html: `<strong>${stats.total}</strong> files in that folder`
+      + (stats.sampled ? `, ${stats.sampled} of them examined.` : '.') }),
+    ...explain.map((line) => el('p', { class: 'mt-1', html: line })),
+  );
+
+  if (profile) {
+    body.append(
+      el('p', { class: 'field-label mt-2', text: 'Folder profile' }),
+      el('div', { class: 'log-box', style: 'white-space:pre; font-size:11.5px', text: profile.text }),
+      el('div', { class: 'form-row mt-1' },
+        el('button', {
+          class: 'btn btn-primary btn-sm', type: 'button', text: 'Download profile',
+          onclick: () => downloadFile(`folder-profile-${state.target}-${today()}.txt`, profile.text, 'text/plain'),
+        }),
+        el('button', {
+          class: 'btn btn-default btn-sm', type: 'button', text: 'Copy profile',
+          onclick: async (e) => {
+            try {
+              await navigator.clipboard.writeText(profile.text);
+              e.currentTarget.textContent = 'Copied';
+            } catch {
+              e.currentTarget.textContent = 'Select it by hand — the clipboard is blocked';
+            }
+          },
+        }),
+      ),
+    );
+  }
+
+  host.innerHTML = '';
+  host.append(card(null, body));
+}
+
 function renderUnreadable(host, file, info, buffer) {
   const steps = NEXT_STEPS[info.id] || NEXT_STEPS.binary;
   const print = fingerprint(buffer, info);
@@ -516,10 +647,65 @@ function autoMap() {
   }
 }
 
+/**
+ * Everything the file actually contains, with a sample of each column.
+ *
+ * The mapping table below is organised the other way round — one row per field
+ * this app knows about — so a column nothing has been mapped to is invisible
+ * there. That matters most for folders whose files are one delimited line with
+ * no header anywhere: the columns arrive as "Field 1", "Field 2", and without
+ * seeing a value beside each one there is no way to tell which is which.
+ */
+function fileColumnsPanel() {
+  const scan = state.rows.slice(0, 4000);
+  const columns = state.headers.map((name, index) => {
+    const sampleRow = scan.find((row) => String(row[index] ?? '').trim());
+    return {
+      name,
+      index,
+      sample: sampleRow ? String(sampleRow[index]).replace(/\s+/g, ' ').slice(0, 90) : '',
+    };
+  });
+
+  const positional = state.headers.some((h) => /^Field \d+$/.test(h));
+
+  const table = el('table', { class: 'map-table cols-table' });
+  table.append(el('thead', {}, el('tr', {},
+    el('th', { text: 'Column in your file' }),
+    el('th', { text: 'Example value' }),
+  )));
+  const tb = el('tbody');
+  for (const c of columns) {
+    tb.append(el('tr', {},
+      el('td', { html: `<span class="input-mono">${esc(c.name)}</span>` }),
+      el('td', { class: 'map-sample', html: c.sample
+        ? esc(c.sample)
+        : '<em class="text-muted">empty in every row</em>' }),
+    ));
+  }
+  table.append(tb);
+
+  const details = el('details', { class: 'cols-found', open: positional });
+  details.append(
+    el('summary', { text: `What is in your file — ${columns.length} columns` }),
+    positional
+      ? el('p', { class: 'text-small text-muted', style: 'margin:8px 0 0', text:
+          'These files have no header row, so the columns are numbered by position. '
+          + 'Use the example values to work out which is which, then map them below.' })
+      : null,
+    el('div', { class: 'table-wrap', style: 'margin-top:10px' }, table),
+  );
+  return details;
+}
+
 function renderMapping() {
   const cfg = TARGETS[state.target];
 
-  const table = el('table', { class: 'map-table' });
+  // Two tables on this screen share .map-table for styling, so each also carries
+  // its own class: .map-fields is one row per app field, .cols-table is one row
+  // per column in the file. Anything selecting one of them must use the specific
+  // class — .cols-table lives inside a <details> that is usually collapsed.
+  const table = el('table', { class: 'map-table map-fields' });
   table.append(el('thead', {}, el('tr', {},
     el('th', { html: L('imp_map') }),
     el('th', { html: 'File column' }),
@@ -558,6 +744,7 @@ function renderMapping() {
   bodyHost.append(card('imp_map', el('div', {},
     el('p', { class: 'text-small text-muted mb-2', html:
       `${T('imp_map_hint')}` }),
+    fileColumnsPanel(),
     el('p', { class: 'text-small mb-2', html:
       `<strong>${esc(state.fileName)}</strong> · ${state.rows.length} ${T('imp_rows_found').toLowerCase()}` }),
     el('div', { class: 'table-wrap' }, table),

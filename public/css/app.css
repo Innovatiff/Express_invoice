@@ -1159,3 +1159,50 @@ kbd {
   text-transform: uppercase;
   color: var(--muted);
 }
+
+/* ---- Import: the two ways in ---------------------------------------------
+   A CSV holding every record as a row, or a folder holding one file per
+   record. They are genuinely different routes rather than variations of one,
+   so they are shown side by side instead of behind a toggle. */
+
+.pick {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 6px;
+}
+.pick-half {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.pick-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.pick-half p { margin: 0; }
+.pick-half input[type="file"] { font-size: 13px; }
+
+/* Collapsible "what is in your file" listing on the mapping step. */
+.cols-found {
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  padding: 10px 14px;
+}
+.cols-found > summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+  list-style-position: outside;
+}
+.cols-found > summary:hover { color: var(--text); }
+.cols-found[open] > summary { margin-bottom: 4px; }
+.cols-found .map-table { background: var(--surface); }
