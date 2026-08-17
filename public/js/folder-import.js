@@ -590,6 +590,10 @@ export async function readFolder(fileList, { onProgress = () => {} } = {}) {
     delimiter: shape.delimiter,
     headers,
     rows,
+    // The records as parsed, before being flattened into columns. Express
+    // Invoice's own files are converted straight from these, with no mapping
+    // step, because for its format there is only one correct mapping.
+    entries: records.map((record) => ({ record, name: record.__file || '' })),
     stats: {
       total: capped.length,
       parsed: records.length,

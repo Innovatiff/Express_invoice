@@ -29,6 +29,9 @@ import {
 import {
   readFolder, MAX_FILES,
 } from '../folder-import.js';
+import {
+  detectFolderType, convertFolder,
+} from '../express-format.js';
 
 setPageTitle('nav_import');
 const { settings } = await initShell('import.html');
@@ -185,6 +188,7 @@ const state = {
   headers: [],
   rows: [],
   mapping: {},          // fieldName -> column index (or -1)
+  express: null,        // { type, entries } when the folder is Express Invoice's own
   dayFirst: false,
   createMissingCustomers: true,
   duplicateMode: 'skip', // skip | update | create
@@ -198,21 +202,21 @@ renderSteps();
 renderStep();
 
 function renderSteps() {
-  const labels = [
-    ['imp_what', 1],
-    ['imp_file', 2],
-    ['imp_map', 3],
-    ['imp_preview', 4],
-  ];
+  // Express Invoice's own folders need no mapping step, so it is not shown —
+  // a greyed-out step the owner can never reach only reads as something skipped
+  // by mistake.
+  const labels = state.express
+    ? [['imp_what', 1], ['imp_file', 2], ['imp_preview', 4]]
+    : [['imp_what', 1], ['imp_file', 2], ['imp_map', 3], ['imp_preview', 4]];
   stepsHost.innerHTML = '';
-  for (const [key, n] of labels) {
+  labels.forEach(([key, n], i) => {
     stepsHost.append(el('div', {
       class: 'step' + (state.step === n ? ' is-active' : state.step > n ? ' is-done' : ''),
     },
-      el('span', { class: 'step-num', text: String(n) }),
+      el('span', { class: 'step-num', text: String(i + 1) }),
       el('span', { html: L(key) }),
     ));
-  }
+  });
 }
 
 function renderStep() {
@@ -328,6 +332,24 @@ function renderChooseFile() {
       }
 
       state.fileName = `${files[0].webkitRelativePath?.split('/')[0] || 'folder'} (${result.stats.parsed} files)`;
+
+      // Express Invoice's own files need no mapping: the keys are fixed, so
+      // there is exactly one right answer and asking the question is only a
+      // chance to get it wrong. Work out which list this is and go.
+      const expressType = result.kind === 'query' ? detectFolderType(
+        (result.entries || []).map((e) => e.record)) : null;
+
+      if (expressType) {
+        state.express = { type: expressType, entries: result.entries };
+        state.target = expressType;
+        state.headers = result.headers;
+        state.rows = result.rows;
+        state.step = 4;
+        renderStep();
+        return;
+      }
+
+      state.express = null;
       state.headers = result.headers;
       state.rows = result.rows;
       autoMap();
@@ -813,7 +835,9 @@ function renderPreview() {
   dupSelect.addEventListener('change', () => { state.duplicateMode = dupSelect.value; });
 
   const options = el('div', { class: 'form-row mb-2' },
-    el('label', { class: 'check' }, dayFirstBox,
+    // Express Invoice writes dates as 2026-04-26, so there is nothing to
+    // interpret and no question to ask.
+    state.express ? null : el('label', { class: 'check' }, dayFirstBox,
       el('span', { html: 'Dates are day/month/year' })),
     el('div', { class: 'field', style: 'min-width:300px' },
       el('label', { class: 'field-label', html: 'Duplicates' }),
@@ -822,6 +846,21 @@ function renderPreview() {
   if (cfg.grouped || state.target === 'payments') {
     options.append(el('label', { class: 'check' }, createBox,
       el('span', { html: 'Create missing customers' })));
+  }
+
+  if (state.express) {
+    const LABEL = {
+      customers: 'customers', items: 'items',
+      invoices: 'invoices, with their line items', payments: 'payments',
+    }[state.express.type];
+    bodyHost.append(card(null, el('div', {},
+      el('p', { html:
+        `<strong>These are Express Invoice's own files.</strong> They were read directly — `
+        + `nothing to match up by hand.` }),
+      el('p', { class: 'text-small text-muted mt-1', html:
+        `Found <strong>${records.length} ${esc(LABEL)}</strong>. `
+        + 'Amounts, dates and totals are taken exactly as the old program stored them.' }),
+    )));
   }
 
   // Preview table over the first handful of built records.
@@ -838,7 +877,9 @@ function renderPreview() {
 
   bodyHost.append(card('imp_preview', el('div', {},
     options,
-    el('div', { class: 'stat-row', style: 'margin-bottom:14px' },
+    // Identified, because the customer-match panel below renders stats too and
+    // "the first stat on the page" is not always this one.
+    el('div', { class: 'stat-row', id: 'preview-stats', style: 'margin-bottom:14px' },
       el('div', { class: 'stat' },
         el('div', { class: 'stat-label', html: L('imp_rows_found') }),
         el('div', { class: 'stat-value', text: String(records.length) })),
@@ -967,6 +1008,18 @@ function previewColumns() {
       { label: T('item_category'), value: (r) => r.category || '' },
     ];
   }
+  // Express Invoice keeps no separate company, phone, email or city — there is
+  // a name and one free-text address block, with the phone usually inside it.
+  // Showing five columns that are blank by definition makes a good import look
+  // like a broken one, so the preview shows what is actually there.
+  if (state.express) {
+    return [
+      { label: T('cust_name'), value: (r) => r.name || '' },
+      { label: T('cust_address'), value: (r) => String(r.address || '').replace(/\s*\n\s*/g, ' · ').slice(0, 80) },
+      { label: T('terms'), value: (r) => r.terms || '' },
+    ];
+  }
+
   return [
     { label: T('cust_name'), value: (r) => r.name || '' },
     { label: T('cust_company'), value: (r) => r.company || '' },
@@ -992,7 +1045,63 @@ function truthy(value) {
   return ['1', 'y', 'yes', 'true', 't', 'si', 'sí', 'x', 'taxable', 'gravable'].includes(v);
 }
 
+/**
+ * Express Invoice's own files, converted without a mapping step.
+ *
+ * convertFolder does the reading; this only wraps each result in the blank
+ * record so it carries every field the app expects, and fills the derived
+ * pieces the converter deliberately leaves alone.
+ */
+function buildExpressRecords() {
+  const { type, entries } = state.express;
+  const { records: converted, problems } = convertFolder(entries, type);
+
+  const records = converted.map((raw) => {
+    if (type === 'customers') {
+      const record = { ...blankCustomer(), ...raw };
+      record.searchBlob = customerSearchBlob(record);
+      return record;
+    }
+    if (type === 'items') {
+      const record = { ...blankItem(), ...raw };
+      record.searchBlob = itemSearchBlob(record);
+      return record;
+    }
+    if (type === 'payments') {
+      const record = { ...blankPayment(), ...raw };
+      // The writer resolves the invoice by number and applies the payment, so
+      // hand it the number rather than a second allocation path.
+      record._invoiceNumber = (raw.allocations || [])[0]?.invoiceNumber || '';
+      record.allocations = [];
+      return record;
+    }
+
+    const record = { ...blankDoc('invoice', settings), ...raw };
+    if (!record.lines.length) {
+      record.lines = [{
+        ...blankDoc('invoice', settings).lines[0],
+        description: record.notes || '',
+        qty: 1,
+        unitCents: record.totalCents || 0,
+        amountCents: record.totalCents || 0,
+      }];
+      record.subtotalCents = record.totalCents || 0;
+    }
+    record.paymentStatus = derivePaymentStatus(record);
+    record.importedAt = today();
+    record.searchBlob = [
+      record.number, record.customerName, record.poNumber, record.salesPerson,
+      ...record.lines.map((l) => `${l.code} ${l.description}`),
+    ].filter(Boolean).join(' ').toLowerCase().slice(0, 1500);
+    return record;
+  });
+
+  return { records, problems };
+}
+
 function buildRecords() {
+  if (state.express) return buildExpressRecords();
+
   const cfg = TARGETS[state.target];
   const problems = [];
 
@@ -1001,7 +1110,7 @@ function buildRecords() {
     state.rows.forEach((row, i) => {
       const name = cellOf(row, 'name');
       const company = cellOf(row, 'company');
-      if (!name && !company) { problems.push(`Fila ${i + 2}: sin nombre / no name`); return; }
+      if (!name && !company) { problems.push(`Row ${i + 2}: no name`); return; }
       const record = {
         ...blankCustomer(),
         name: name || company,
@@ -1034,7 +1143,7 @@ function buildRecords() {
     state.rows.forEach((row, i) => {
       const code = cellOf(row, 'code');
       const description = cellOf(row, 'description');
-      if (!code && !description) { problems.push(`Fila ${i + 2}: sin código ni descripción / no code or description`); return; }
+      if (!code && !description) { problems.push(`Row ${i + 2}: no code or description`); return; }
       const qty = cellOf(row, 'qtyInStock');
       const record = {
         ...blankItem(),
@@ -1060,8 +1169,8 @@ function buildRecords() {
     state.rows.forEach((row, i) => {
       const amount = parseMoney(cellOf(row, 'amountCents'));
       const customerName = cellOf(row, 'customerName');
-      if (!amount) { problems.push(`Fila ${i + 2}: monto vacío / empty amount`); return; }
-      if (!customerName) { problems.push(`Fila ${i + 2}: sin cliente / no customer`); return; }
+      if (!amount) { problems.push(`Row ${i + 2}: no amount`); return; }
+      if (!customerName) { problems.push(`Row ${i + 2}: no customer`); return; }
       const record = {
         ...blankPayment(),
         number: cellOf(row, 'number'),
@@ -1094,7 +1203,7 @@ function buildRecords() {
         number = previous;
       } else {
         fallbackCounter += 1;
-        problems.push(`Fila ${i + 2}: sin número de documento / no document number`);
+        problems.push(`Row ${i + 2}: no document number`);
         return;
       }
     }
@@ -1169,7 +1278,7 @@ function buildRecords() {
       }];
     }
     finalizeDocumentTotals(record, type);
-    if (!record.customerName) problems.push(`${record.number}: sin cliente / no customer`);
+    if (!record.customerName) problems.push(`${record.number}: no customer`);
     records.push(record);
   }
 
@@ -1265,9 +1374,9 @@ async function runImport(records) {
   const cfg = TARGETS[state.target];
 
   const ok = await confirmDialog(
-    `Se importarán <strong>${records.length}</strong> registros a <strong>${T(cfg.labelKey)}</strong>.` +
-    `<br>${records.length} records will be imported.` +
-    '<br><br><span class="text-small text-muted">Take a backup first if you already have data.</span>',
+    `<strong>${records.length}</strong> records will be imported into `
+    + `<strong>${T(cfg.labelKey)}</strong>.`
+    + '<br><br><span class="text-small text-muted">Take a backup first if you already have data.</span>',
     { okKey: 'imp_run' },
   );
   if (!ok) return;

@@ -8,7 +8,7 @@
 
 import {
   $, el, esc, L, T, initShell, pageHeader, setPageTitle, params, money,
-  fmtDate, today, monthStart, yearStart, loadAll, orderBy, where, limit,
+  fmtDate, today, monthStart, yearStart, addDays, loadAll, orderBy,
   onAction, toast, matchesSearch, debounce, toCSV, downloadFile, spinner,
 } from './app.js';
 import {
@@ -18,7 +18,50 @@ import {
   statusPill, dataTable, sortRows, field, selectEl,
 } from './components.js';
 
-const PAGE_SIZE = 400;
+// Every document is loaded — ten years of invoices is one list you scroll,
+// the way the desktop program showed it, not a "most recent 400" window.
+// Rendering is what gets chunked: CHUNK rows go into the table at a time and
+// more follow as you reach the bottom, so three thousand rows do not have to
+// be built before the first one is visible.
+const CHUNK = 150;
+
+/**
+ * The from/to dates a named period covers, as YYYY-MM-DD strings.
+ *
+ * Worked out on the string, never on a Date the browser might shift into
+ * yesterday: an invoice dated the 1st must not fall out of "This Month"
+ * because the machine is an hour behind UTC.
+ */
+function periodRange(key) {
+  const now = today();
+  const [y, m] = now.split('-').map(Number);
+  const iso = (yy, mm, dd) => `${yy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+  const lastDay = (yy, mm) => new Date(Date.UTC(yy, mm, 0)).getUTCDate();
+
+  switch (key) {
+    case 'today': return { from: now, to: now };
+    case 'week': {
+      // Monday to today, the way a shop counts its week.
+      const dow = (new Date(`${now}T00:00:00Z`).getUTCDay() + 6) % 7;
+      return { from: addDays(now, -dow), to: now };
+    }
+    case 'month': return { from: monthStart(), to: now };
+    case 'lastmonth': {
+      const py = m === 1 ? y - 1 : y;
+      const pm = m === 1 ? 12 : m - 1;
+      return { from: iso(py, pm, 1), to: iso(py, pm, lastDay(py, pm)) };
+    }
+    case 'd30': return { from: addDays(now, -29), to: now };
+    case 'd90': return { from: addDays(now, -89), to: now };
+    case 'quarter': {
+      const qm = Math.floor((m - 1) / 3) * 3 + 1;
+      return { from: iso(y, qm, 1), to: now };
+    }
+    case 'year': return { from: yearStart(), to: now };
+    case 'lastyear': return { from: `${y - 1}-01-01`, to: `${y - 1}-12-31` };
+    default: return { from: '', to: '' };
+  }
+}
 
 export async function mountDocList(type) {
   const cfg = DOC_TYPES[type];
@@ -48,6 +91,7 @@ export async function mountDocList(type) {
 
   let rows = [];
   let filtered = [];
+  let shown = CHUNK;   // how many of `filtered` are actually in the table
 
   // ---- Filter bar -----------------------------------------------------------
 
@@ -81,13 +125,20 @@ export async function mountDocList(type) {
 
   const rangeSelect = selectEl([
     { value: '', labelKey: 'all' },
+    { value: 'today', labelKey: 'rep_today' },
+    { value: 'week', labelKey: 'rep_this_week' },
     { value: 'month', labelKey: 'rep_this_month' },
+    { value: 'lastmonth', labelKey: 'rep_last_month' },
+    { value: 'd30', labelKey: 'rep_last_30' },
+    { value: 'd90', labelKey: 'rep_last_90' },
+    { value: 'quarter', labelKey: 'rep_this_quarter' },
     { value: 'year', labelKey: 'rep_this_year' },
+    { value: 'lastyear', labelKey: 'rep_last_year' },
   ]);
   rangeSelect.addEventListener('change', () => {
-    if (rangeSelect.value === 'month') { state.from = monthStart(); state.to = today(); }
-    else if (rangeSelect.value === 'year') { state.from = yearStart(); state.to = today(); }
-    else { state.from = ''; state.to = ''; }
+    const range = periodRange(rangeSelect.value);
+    state.from = range.from;
+    state.to = range.to;
     fromInput.value = state.from;
     toInput.value = state.to;
     applyFilters();
@@ -126,8 +177,7 @@ export async function mountDocList(type) {
   // ---- Load -----------------------------------------------------------------
 
   try {
-    const constraints = [orderBy('date', 'desc'), limit(PAGE_SIZE)];
-    rows = await loadAll(cfg.collection, ...constraints);
+    rows = await loadAll(cfg.collection, orderBy('date', 'desc'));
   } catch (err) {
     console.error('Could not load documents', err);
     tableHost.innerHTML = '';
@@ -162,6 +212,8 @@ export async function mountDocList(type) {
       status: (r) => displayStatus(r, asOf),
     });
 
+    // Any change of filter or sort starts the list again from the top.
+    shown = CHUNK;
     render();
   }
 
@@ -182,16 +234,16 @@ export async function mountDocList(type) {
       { key: 'customerName', labelKey: 'customer',
         html: (r) => `${esc(r.customerName || '—')}${r.poNumber ? `<span class="cell-sub">PO ${esc(r.poNumber)}</span>` : ''}` },
       { key: 'totalCents', labelKey: 'total', className: 'num', html: (r) => esc(money(r.totalCents)),
-        footer: (list) => esc(money(list.reduce((s, r) => s + (Number(r.totalCents) || 0), 0))) },
+        footer: true, footerSum: (s, r) => s + (Number(r.totalCents) || 0) },
     ];
 
     if (cfg.hasPayments) {
       columns.push(
         { key: 'paidCents', labelKey: 'amount_paid', className: 'num', html: (r) => esc(money(r.paidCents)),
-          footer: (list) => esc(money(list.reduce((s, r) => s + (Number(r.paidCents) || 0), 0))) },
+          footer: true, footerSum: (s, r) => s + (Number(r.paidCents) || 0) },
         { key: 'balanceCents', labelKey: 'balance_due', className: 'num',
           html: (r) => `<strong>${esc(money(r.balanceCents))}</strong>`,
-          footer: (list) => esc(money(list.reduce((s, r) => s + (Number(r.balanceCents) || 0), 0))) },
+          footer: true, footerSum: (s, r) => s + (Number(r.balanceCents) || 0) },
       );
     }
     if (cfg.hasDueDate) {
@@ -201,10 +253,17 @@ export async function mountDocList(type) {
     columns.push({ key: 'status', labelKey: 'status', className: 'nowrap',
       html: (r) => statusPill(r, asOf) });
 
+    // Footer totals are over everything that matched, not over the rows drawn
+    // so far — a running total that grows as you scroll would be a lie.
+    const totalsOf = (fn) => () => esc(money(filtered.reduce(fn, 0)));
+    for (const column of columns) {
+      if (column.footer) column.footer = totalsOf(column.footerSum);
+    }
+
     tableHost.innerHTML = '';
     tableHost.append(dataTable({
       columns,
-      rows: filtered,
+      rows: filtered.slice(0, shown),
       sort: { key: state.sortKey, dir: state.sortDir },
       onSort: (key) => {
         if (state.sortKey === key) state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
@@ -216,9 +275,22 @@ export async function mountDocList(type) {
       emptyKey: rows.length ? 'msg_no_results' : 'msg_empty_list',
     }));
 
-    if (rows.length >= PAGE_SIZE) {
+    // More rows as you reach the bottom. The sentinel is watched rather than
+    // polled on scroll, so a three-thousand-row list still scrolls smoothly.
+    if (shown < filtered.length) {
+      const sentinel = el('div', { class: 'list-more text-small text-muted', html:
+        `${shown} ${T('of')} ${filtered.length} — <span class="spin-dot"></span> loading more…` });
+      tableHost.append(sentinel);
+      const observer = new IntersectionObserver((entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        observer.disconnect();
+        shown = Math.min(shown + CHUNK, filtered.length);
+        render();
+      }, { rootMargin: '400px' });
+      observer.observe(sentinel);
+    } else if (filtered.length > CHUNK) {
       tableHost.append(el('div', { class: 'card-foot text-small text-muted', html:
-        `Showing the ${PAGE_SIZE} most recent. Narrow the dates to reach older ones.` }));
+        `All ${filtered.length} shown.` }));
     }
   }
 
