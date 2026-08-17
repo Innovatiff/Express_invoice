@@ -89,8 +89,8 @@ async function run() {
   try {
     const [customer, invoices, payments] = await Promise.all([
       loadOne('customers', state.customerId),
-      loadAll('invoices', where('customerId', '==', state.customerId), orderBy('date', 'desc'), limit(1000)),
-      loadAll('payments', where('customerId', '==', state.customerId), orderBy('date', 'desc'), limit(1000)),
+      loadAll('invoices', where('customerId', '==', state.customerId)),
+      loadAll('payments', where('customerId', '==', state.customerId)),
     ]);
 
     const opening = openingBalance(invoices, payments, state.from);

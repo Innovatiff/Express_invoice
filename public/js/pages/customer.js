@@ -3,6 +3,7 @@ import {
   moneyInput, parseMoney, parseRate, fmtDate, loadOne, loadAll, saveRecord,
   removeRecord, orderBy, where, limit, onAction, toast, toastKey,
   confirmDialog, trackDirty, spinner,
+  byDateDesc,
 } from '../app.js';
 import {
   blankCustomer, customerSearchBlob,
@@ -130,11 +131,14 @@ if (!isNew) {
 }
 
 async function renderHistory(host) {
-  const [invoices, payments, quotes] = await Promise.all([
-    loadAll('invoices', where('customerId', '==', p.id), orderBy('date', 'desc'), limit(200)),
-    loadAll('payments', where('customerId', '==', p.id), orderBy('date', 'desc'), limit(200)),
-    loadAll('quotes', where('customerId', '==', p.id), orderBy('date', 'desc'), limit(50)),
+  const [rawInvoices, rawPayments, rawQuotes] = await Promise.all([
+    loadAll('invoices', where('customerId', '==', p.id)),
+    loadAll('payments', where('customerId', '==', p.id)),
+    loadAll('quotes', where('customerId', '==', p.id)),
   ]);
+  const invoices = byDateDesc(rawInvoices);
+  const payments = byDateDesc(rawPayments);
+  const quotes = byDateDesc(rawQuotes);
 
   const openBalance = invoices
     .filter((i) => !i.voided && i.status !== 'draft')

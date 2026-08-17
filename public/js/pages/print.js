@@ -342,8 +342,8 @@ async function renderStatement() {
   const to = p.to || today();
 
   const [invoices, payments] = await Promise.all([
-    loadAll('invoices', where('customerId', '==', p.customer), orderBy('date', 'desc'), limit(1000)),
-    loadAll('payments', where('customerId', '==', p.customer), orderBy('date', 'desc'), limit(1000)),
+    loadAll('invoices', where('customerId', '==', p.customer)),
+    loadAll('payments', where('customerId', '==', p.customer)),
   ]);
 
   const opening = openingBalance(invoices, payments, from);

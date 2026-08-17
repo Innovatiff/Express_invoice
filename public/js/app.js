@@ -671,6 +671,21 @@ export async function loadAll(name, ...constraints) {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
+/**
+ * Newest first, on the date string.
+ *
+ * These per-customer lists are ordered here rather than in the query on
+ * purpose. Firestore needs a composite index for a where() combined with an
+ * orderBy() on a different field, and until that index is built and deployed
+ * the query does not return fewer rows — it fails outright, which is how
+ * "record a payment" came to report that it could not find the invoices.
+ * Filtering to one customer already bounds the result to something small, so
+ * sorting it here costs nothing and needs no index to exist first.
+ */
+export function byDateDesc(list) {
+  return [...(list || [])].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+}
+
 export async function loadOne(name, id) {
   if (!id) return null;
   const snap = await getDoc(doc(db, name, id));

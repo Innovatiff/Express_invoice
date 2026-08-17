@@ -3,6 +3,7 @@ import {
   today, addDays, loadAll, loadOne, saveRecord, removeRecord, nextNumber,
   orderBy, where, onAction, toast, toastKey, confirmDialog, openModal,
   spinner,
+  byDateDesc,
 } from '../app.js';
 import {
   blankDoc, recalc, advanceDate, FREQUENCIES, stockDeltasForDoc,
@@ -139,8 +140,8 @@ async function openEditor(existing) {
       sourceSelect.append(el('option', { value: '' }, T('msg_pick_customer')));
       return;
     }
-    const invoices = await loadAll('invoices',
-      where('customerId', '==', record.customerId), orderBy('date', 'desc'));
+    const invoices = byDateDesc(
+      await loadAll('invoices', where('customerId', '==', record.customerId)));
     if (!invoices.length) {
       sourceSelect.append(el('option', { value: '' }, T('msg_empty_list')));
       return;

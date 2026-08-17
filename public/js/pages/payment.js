@@ -164,8 +164,7 @@ async function loadOpenInvoices() {
     return;
   }
   try {
-    const all = await loadAll('invoices',
-      where('customerId', '==', record.customerId), orderBy('date', 'desc'), limit(300));
+    const all = await loadAll('invoices', where('customerId', '==', record.customerId));
     openInvoices = all
       .filter((inv) => !inv.voided && inv.status !== 'draft')
       .filter((inv) => available(inv) > 0 || originalAlloc.has(inv.id))
@@ -173,7 +172,9 @@ async function loadOpenInvoices() {
   } catch (err) {
     console.error(err);
     openInvoices = [];
-    toast('Could not load invoices.', 'err');
+    // Say what actually went wrong. "Could not load invoices" on its own sent
+    // the owner looking for missing invoices when the query itself had failed.
+    toast(`Could not load this customer's invoices. ${err.message || ''}`.trim(), 'err', 8000);
   }
 
   // Arriving from an invoice: preselect it and offer the full balance.
