@@ -20,6 +20,19 @@ const SAMPLE_SIZE = 24;
 const MAX_FILES = 20000;
 const READ_CONCURRENCY = 24;
 
+/**
+ * The record's own label, taken from its file name.
+ *
+ * Express Invoice names the file after the record and encodes it the same way
+ * it encodes the contents, so "Aaron%20Martinez%20Gonzalez.dat" is a customer
+ * called Aaron Martinez Gonzalez. The extension is never part of the record,
+ * and decoding a name with nothing escaped in it changes nothing, so this is
+ * safe to apply to every folder.
+ */
+export function fileLabel(name) {
+  return pctDecode(String(name || '').replace(/\.[a-z0-9]{1,5}$/i, ''));
+}
+
 /** Files that are noise in any folder, not records. */
 function isNoise(file) {
   const name = (file.name || '').toLowerCase();
@@ -73,6 +86,62 @@ export function parseKeyValue(text) {
   }
 
   return order.length ? { record, order, repeated } : null;
+}
+
+/**
+ * Percent-decoding that cannot lose a value.
+ *
+ * decodeURIComponent throws on a stray "%" that is not an escape, and one bad
+ * character in one field must not discard a customer's whole address. So the
+ * valid escape runs are decoded individually — which keeps multi-byte UTF-8
+ * correct, unlike decoding byte by byte — and anything malformed is left as it
+ * was written.
+ */
+export function pctDecode(s) {
+  const text = String(s ?? '');
+  if (!text.includes('%')) return text;
+  try { return decodeURIComponent(text); } catch { /* fall through */ }
+  return text.replace(/(?:%[0-9a-fA-F]{2})+/g, (run) => {
+    try { return decodeURIComponent(run); } catch { return run; }
+  });
+}
+
+/**
+ * Express Invoice's own layout: one line per file, "key=value" joined by "&",
+ * with every value percent-encoded — the same encoding a browser uses to post a
+ * form. Line breaks inside a value arrive as %0D%0A, so a multi-line address
+ * block survives intact.
+ *
+ * Note what is *not* in the file: the customer's name. The file is called
+ * "Aaron%20Martinez%20Gonzalez.dat" and that is the only place the name exists,
+ * which is why the file name is offered as a column of its own.
+ */
+export function parseQueryString(text) {
+  const line = text.split(/\r?\n/).find((l) => l.trim());
+  if (!line) return null;
+  const parts = line.split('&');
+  if (parts.length < 2) return null;
+
+  const record = {};
+  const order = [];
+  let pairs = 0;
+  let repeated = false;
+
+  for (const part of parts) {
+    const cut = part.indexOf('=');
+    if (cut <= 0) continue;
+    const key = pctDecode(part.slice(0, cut)).trim();
+    if (!key) continue;
+    const value = pctDecode(part.slice(cut + 1));
+    pairs += 1;
+    if (record[key] === undefined) { record[key] = value; order.push(key); }
+    else { record[key] += '\n' + value; repeated = true; }
+  }
+
+  // Nearly every chunk has to be a real pair. Otherwise this is prose that
+  // happens to contain an ampersand, not an encoded record.
+  if (pairs < 2 || pairs < parts.length * 0.8) return null;
+  return { record, order, repeated };
 }
 
 /** One delimited line holding the whole record, with no header row anywhere. */
@@ -224,6 +293,7 @@ export function detectShape(samples) {
   const xml = count((t) => t.trimStart().startsWith('<') && parseXmlRecord(t));
   const json = count(parseJsonRecord);
   const keyvalue = count((t) => { const r = parseKeyValue(t); return r && r.order.length >= 2; });
+  const query = count(parseQueryString);
 
   // For each candidate delimiter, two questions: is the first line's field count
   // the same in every file, and is every line in every file the same width?
@@ -247,6 +317,7 @@ export function detectShape(samples) {
     `parses as XML          ${xml} of ${total}`,
     `parses as JSON         ${json} of ${total}`,
     `has key=value lines    ${keyvalue} of ${total}`,
+    `url-encoded a&b=c      ${query} of ${total}`,
     `single-line files      ${oneLine} of ${total}`,
     ...DELIMITERS.map((d) => {
       const first = firstLine[d].filter((n) => n > 1);
@@ -261,6 +332,9 @@ export function detectShape(samples) {
   if (xml >= majority) return { kind: 'xml', diagnostics };
   if (json >= majority) return { kind: 'json', diagnostics };
   if (keyvalue >= majority) return { kind: 'keyvalue', diagnostics };
+  // Before the delimiter guesses: an encoded line has no bare delimiter in it,
+  // but it does contain "=", and a half-read record is worse than none.
+  if (query >= majority) return { kind: 'query', diagnostics };
 
   // One delimited line per file. Only when the files really are one line —
   // otherwise everything after the first line would be silently dropped.
@@ -464,6 +538,7 @@ export async function readFolder(fileList, { onProgress = () => {} } = {}) {
   const parseOne = (text) => {
     let out;
     if (shape.kind === 'keyvalue') out = parseKeyValue(text);
+    else if (shape.kind === 'query') out = parseQueryString(text);
     else if (shape.kind === 'xml') out = parseXmlRecord(text);
     else if (shape.kind === 'json') out = parseJsonRecord(text);
     else if (shape.kind === 'lines') out = parseLines(text);
@@ -490,7 +565,7 @@ export async function readFolder(fileList, { onProgress = () => {} } = {}) {
       if (!parsed || !parsed.length) { unreadable += 1; return; }
       for (const one of parsed) {
         if (one.repeated) repeatedKeys += 1;
-        one.record.__file = batch[j].name;
+        one.record.__file = fileLabel(batch[j].name);
         for (const key of one.order) {
           if (!seenKeys.has(key)) { seenKeys.add(key); keyOrder.push(key); }
         }

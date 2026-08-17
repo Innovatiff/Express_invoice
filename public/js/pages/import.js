@@ -57,16 +57,18 @@ const TARGETS = {
       ['company', 'cust_company', ['company', 'business', 'empresa', 'compania', 'compañía']],
       ['account', 'cust_account', ['account', 'account number', 'customer id', 'cuenta', 'codigo', 'código']],
       ['contact', 'cust_contact', ['contact', 'contact name', 'contacto', 'attention']],
-      ['address', 'cust_address', ['address', 'address 1', 'street', 'direccion', 'dirección']],
+      // "fulladdress" and friends are Express Invoice's own key names, which
+      // arrive unspaced from its .dat files: FullAddress, CustomerCountryCode.
+      ['address', 'cust_address', ['address', 'address 1', 'street', 'direccion', 'dirección', 'fulladdress']],
       ['address2', 'cust_address2', ['address 2', 'address2', 'direccion 2']],
       ['city', 'cust_city', ['city', 'ciudad']],
       ['state', 'cust_state', ['state', 'province', 'estado', 'provincia']],
       ['zip', 'cust_zip', ['zip', 'postal', 'postcode', 'zip code', 'codigo postal', 'código postal']],
-      ['country', 'cust_country', ['country', 'pais', 'país']],
+      ['country', 'cust_country', ['country', 'pais', 'país', 'customercountrycode', 'countrycode']],
       ['phone', 'cust_phone', ['phone', 'telephone', 'tel', 'telefono', 'teléfono']],
       ['mobile', 'cust_mobile', ['mobile', 'cell', 'cellphone', 'celular', 'movil', 'móvil']],
       ['email', 'cust_email', ['email', 'e-mail', 'correo']],
-      ['terms', 'terms', ['terms', 'payment terms', 'terminos', 'términos']],
+      ['terms', 'terms', ['terms', 'payment terms', 'terminos', 'términos', 'paymenttermsdays', 'paymentterms']],
       ['discountPct', 'cust_discount', ['discount', 'discount %', 'descuento']],
       ['creditLimitCents', 'cust_credit_limit', ['credit limit', 'limite de credito', 'límite de crédito']],
       ['taxExempt', 'cust_tax_exempt', ['tax exempt', 'exempt', 'exento']],
@@ -650,6 +652,21 @@ function autoMap() {
     const index = normalized.findIndex((h, i) => !used.has(i) && wanted.some((w) => h.startsWith(w + ' ')));
     if (index !== -1) {
       state.mapping[fieldName] = index;
+      used.add(index);
+    }
+  }
+
+  // Last resort for the field that identifies the record — the name of a
+  // customer, the number of an invoice. Express Invoice keeps that in the file
+  // *name* and nowhere else: a customer's file is called
+  // "Aaron%20Martinez%20Gonzalez.dat" and holds only their address and terms.
+  // So if nothing in the file supplied the identity, the file name is not a
+  // guess, it is the only place it exists.
+  const key = cfg.keyField;
+  if (key && state.mapping[key] === -1) {
+    const index = state.headers.indexOf('File name');
+    if (index !== -1 && !used.has(index)) {
+      state.mapping[key] = index;
       used.add(index);
     }
   }
