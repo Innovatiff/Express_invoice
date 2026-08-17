@@ -2,6 +2,7 @@ import {
   $, el, esc, L, T, initShell, pageHeader, setPageTitle, parseRate, today,
   saveSettings, loadAll, peekCounter, setCounter, COUNTER_DEFAULTS,
   onAction, toast, toastKey, trackDirty, downloadFile, formatNumber,
+  money, confirmDialog,
 } from '../app.js';
 import {
   auth, updatePassword,
@@ -9,6 +10,9 @@ import {
 import {
   field, card, selectEl,
 } from '../components.js';
+import {
+  rebuildPaidFromPayments,
+} from '../model.js';
 
 setPageTitle('nav_settings');
 const { user, settings } = await initShell('settings.html');
@@ -263,6 +267,83 @@ page.append(card('set_data', el('div', {},
     el('a', { class: 'btn btn-default', href: 'import.html', html: L('nav_import') }),
   ),
 )));
+
+// ---------------------------------------------------------------------------
+// Rebuilding balances
+//
+// Express Invoice writes a paid figure onto the invoice, and the import takes
+// it as given. On real data that figure is sometimes years out of date, so an
+// invoice can show almost nothing paid while the payments against it tell a
+// different story. This reads the payments back and tells the invoices what
+// they actually come to.
+// ---------------------------------------------------------------------------
+
+const rebuildStatus = el('div', { class: 'text-small text-muted mt-1' });
+
+page.append(card('set_rebuild', el('div', {},
+  el('p', { class: 'text-small text-muted', html:
+    'Sets every invoice balance from the payments recorded against it. Worth running '
+    + 'after importing payments, or whenever an invoice shows less paid than the '
+    + 'payments on the customer\u2019s page add up to.' }),
+  el('p', { class: 'text-small text-muted mt-1', html:
+    '<strong>Invoices with no payment linked to them are left alone.</strong> A payment '
+    + 'whose invoice was never imported leaves no link, and zeroing those would throw away '
+    + 'the only record of the money.' }),
+  el('div', { class: 'form-row mt-2' },
+    el('button', {
+      class: 'btn btn-default', type: 'button', text: 'Check what would change',
+      onclick: (e) => rebuild(e.currentTarget, true),
+    }),
+    el('button', {
+      class: 'btn btn-primary', type: 'button', text: 'Rebuild balances',
+      onclick: (e) => rebuild(e.currentTarget, false),
+    }),
+  ),
+  rebuildStatus,
+)));
+
+async function rebuild(button, preview) {
+  const label = button.textContent;
+  button.disabled = true;
+  button.textContent = 'Reading…';
+  rebuildStatus.innerHTML = '';
+  try {
+    const found = await rebuildPaidFromPayments({ preview: true });
+    if (!found.changed) {
+      rebuildStatus.innerHTML = `Nothing to change. ${found.invoices} invoices, `
+        + `${found.payments} payments, ${found.linked} invoices with a payment linked.`;
+      return;
+    }
+
+    const detail = found.examples
+      .map((x) => `<li><span class="input-mono">${esc(x.number || '—')}</span> `
+        + `${esc(money(x.was))} → <strong>${esc(money(x.now))}</strong></li>`).join('');
+    const body = `<strong>${found.changed}</strong> invoices would change.`
+      + `<br>Paid across them: ${esc(money(found.wasTotal))} → <strong>${esc(money(found.nowTotal))}</strong>.`
+      + `<ul style="margin:10px 0 0;padding-left:18px">${detail}</ul>`;
+
+    if (preview) {
+      rebuildStatus.innerHTML = body;
+      return;
+    }
+    const ok = await confirmDialog(body
+      + '<br><span class="text-small text-muted">Take a backup first if you are unsure.</span>',
+      { okKey: 'act_run' });
+    if (!ok) { rebuildStatus.innerHTML = body; return; }
+
+    button.textContent = 'Rebuilding…';
+    const done = await rebuildPaidFromPayments();
+    rebuildStatus.innerHTML = `Rebuilt <strong>${done.changed}</strong> invoices. `
+      + `Paid across them: ${esc(money(done.wasTotal))} → <strong>${esc(money(done.nowTotal))}</strong>.`;
+    toastKey('msg_saved');
+  } catch (err) {
+    console.error(err);
+    rebuildStatus.innerHTML = `<span class="text-red">${esc(err.message || 'Could not rebuild.')}</span>`;
+  } finally {
+    button.disabled = false;
+    button.textContent = label;
+  }
+}
 
 // ---------------------------------------------------------------------------
 

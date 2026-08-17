@@ -18,7 +18,7 @@ import {
 } from '../app.js';
 import {
   blankCustomer, blankItem, blankDoc, blankPayment, customerSearchBlob,
-  itemSearchBlob, derivePaymentStatus,
+  itemSearchBlob, derivePaymentStatus, rebuildPaidFromPayments,
 } from '../model.js';
 import {
   field, card, selectEl,
@@ -1437,7 +1437,10 @@ async function runImport(records) {
       }
     }
 
-    const invoicePaid = new Map(); // invoiceId -> cents applied by this import
+    // Invoices this import put a payment against. Their paid figures are
+    // rebuilt from every payment on file once the writing is done, rather than
+    // nudged by a delta here — see the rebuild for why the payments win.
+    const touchedInvoices = new Set();
     let batch = writeBatch(db);
     let opsInBatch = 0;
     let maxNumber = 0;
@@ -1494,20 +1497,7 @@ async function runImport(records) {
               amountCents: record.amountCents,
             }];
 
-            // Two reasons not to add this to the invoice's paid figure:
-            //
-            // The invoice already counted it. An invoice imported from Express
-            // Invoice carries that program's own AmountPaid, which is the sum
-            // of these very payments — adding them again pays every invoice
-            // twice. sourcePaidCents marks an invoice whose paid figure came
-            // in that way, and it is left exactly as the old program had it.
-            //
-            // Or this payment is not being written at all. A skipped duplicate
-            // must not shift a balance it was already counted against, or a
-            // second run of the same folder quietly overpays everything.
-            if (!skipping && invoice.sourcePaidCents === undefined) {
-              invoicePaid.set(invoice.id, (invoicePaid.get(invoice.id) || 0) + record.amountCents);
-            }
+            touchedInvoices.add(invoice.id);
           }
           record.appliedCents = (record.allocations || []).reduce((s, a) => s + a.amountCents, 0);
           record.unappliedCents = record.amountCents - record.appliedCents;
@@ -1552,26 +1542,19 @@ async function runImport(records) {
 
     await flush();
 
-    // --- Roll the invoice balances forward for imported payments ---
-    if (state.target === 'payments' && invoicePaid.size) {
+    // --- Set the invoice balances from the payments now on file ---
+    //
+    // Set, not added. Every payment against an invoice is read back and the
+    // invoice is told what it comes to, so importing the same folder twice
+    // lands on the same figure and the invoice's own paid amount — which this
+    // shop's data shows can be badly out of date — does not get the last word.
+    if (state.target === 'payments' && touchedInvoices.size) {
       write(`${T('act_recalculate')} ${T('nav_invoices')}…`);
-      let paidBatch = writeBatch(db);
-      let ops = 0;
-      for (const [invoiceId, cents] of invoicePaid) {
-        const invoice = [...invoicesByNumber.values()].find((inv) => inv.id === invoiceId);
-        if (!invoice) continue;
-        const paid = (Number(invoice.paidCents) || 0) + cents;
-        const balance = (Number(invoice.totalCents) || 0) - paid;
-        paidBatch.update(doc(db, 'invoices', invoiceId), {
-          paidCents: paid,
-          balanceCents: balance,
-          paymentStatus: derivePaymentStatus({ ...invoice, paidCents: paid, type: 'invoice', status: 'sent' }),
-          updatedAt: serverTimestamp(),
-        });
-        ops += 1;
-        if (ops >= 400) { await paidBatch.commit(); paidBatch = writeBatch(db); ops = 0; }
+      const summary = await rebuildPaidFromPayments();
+      if (summary.changed) {
+        write(`${summary.changed} ${T('nav_invoices').toLowerCase()}: `
+          + `${money(summary.wasTotal)} → ${money(summary.nowTotal)}`, 'log-ok');
       }
-      if (ops) await paidBatch.commit();
     }
 
     // --- Keep the counter ahead of everything just imported ---

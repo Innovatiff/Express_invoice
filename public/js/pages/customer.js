@@ -148,6 +148,15 @@ async function renderHistory(host) {
     .reduce((s, i) => s + (Number(i.totalCents) || 0), 0);
   const lastSale = invoices.length ? invoices[0].date : '';
 
+  // Money taken from this customer that is not sitting against any invoice.
+  // Without it the page can look plainly wrong — an invoice showing most of
+  // its balance outstanding while payments underneath add up to nearly all of
+  // it — when the real answer is that the money was never applied to anything.
+  const paidIn = payments.reduce((s, p_) => s + (Number(p_.amountCents) || 0), 0);
+  const appliedOut = payments.reduce((s, p_) => s
+    + (p_.allocations || []).reduce((t, a) => t + (Number(a.amountCents) || 0), 0), 0);
+  const unapplied = paidIn - appliedOut;
+
   host.innerHTML = '';
 
   host.append(el('div', { class: 'stat-row' },
@@ -163,7 +172,18 @@ async function renderHistory(host) {
     el('div', { class: 'stat' },
       el('div', { class: 'stat-label', html: L('nav_invoices') }),
       el('div', { class: 'stat-value', text: String(invoices.length) })),
+    unapplied !== 0 ? el('div', { class: 'stat' },
+      el('div', { class: 'stat-label', html: L('pay_unapplied') }),
+      el('div', { class: 'stat-value' + (unapplied > 0 ? ' text-green' : ''), text: money(unapplied) })) : null,
   ));
+
+  if (unapplied > 0) {
+    host.append(el('p', { class: 'text-small text-muted mb-2', html:
+      `<strong>${esc(money(unapplied))}</strong> of this customer\u2019s payments is not applied to any `
+      + 'invoice, so it is not reducing the balance above. Open a payment to put it against one — '
+      + 'or use <a href="settings.html">Rebuild Invoice Balances</a> if the payments were imported '
+      + 'already linked and the invoices have not caught up.' }));
+  }
 
   host.append(card('nav_invoices', dataTable({
     columns: [

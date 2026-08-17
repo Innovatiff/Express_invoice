@@ -123,16 +123,26 @@ let invoices = null;
 let payments = null;
 let quotes = null;
 
+/**
+ * Reports read everything, with no cap.
+ *
+ * They used to take the newest few thousand of each. That is not a smaller
+ * report, it is a wrong one, and it fails in the direction that looks
+ * plausible: with ten years of history the cap fell somewhere in the middle,
+ * so every payment older than it simply did not exist. Customers who had paid
+ * faithfully for years came out as having never paid at all, and nothing on
+ * the screen suggested anything had been left out.
+ */
 async function ensureData(kinds) {
   const jobs = [];
   if (kinds.includes('invoices') && !invoices) {
-    jobs.push(loadAll('invoices', orderBy('date', 'desc'), limit(4000)).then((r) => { invoices = r; }));
+    jobs.push(loadAll('invoices', orderBy('date', 'desc')).then((r) => { invoices = r; }));
   }
   if (kinds.includes('payments') && !payments) {
-    jobs.push(loadAll('payments', orderBy('date', 'desc'), limit(4000)).then((r) => { payments = r; }));
+    jobs.push(loadAll('payments', orderBy('date', 'desc')).then((r) => { payments = r; }));
   }
   if (kinds.includes('quotes') && !quotes) {
-    jobs.push(loadAll('quotes', orderBy('date', 'desc'), limit(2000)).then((r) => { quotes = r; }));
+    jobs.push(loadAll('quotes', orderBy('date', 'desc')).then((r) => { quotes = r; }));
   }
   await Promise.all(jobs);
 }
@@ -481,8 +491,12 @@ async function buildAged() {
 
 async function buildQuiet() {
   await ensureData(['invoices', 'payments']);
-  const asOf = state.to || today();
+  // Silence is always counted back from today, never from the To date. The
+  // range decides which unpaid invoices are in question; how long someone has
+  // gone without paying is a fact about now. Tying it to To meant a range
+  // ending next year made every customer look silent for a year.
   const months = Number(state.quietMonths) || 3;
+  const asOf = today();
   const cutoff = addMonths(asOf, -months);
 
   // Group by customer id where there is one, by name where there is not, so a
@@ -492,7 +506,11 @@ async function buildQuiet() {
   const byCustomer = new Map();
   for (const inv of invoices) {
     if (!live(inv) || (Number(inv.balanceCents) || 0) <= 0) continue;
-    if (inv.date && inv.date > asOf) continue;
+    // The From/To range picks which unpaid invoices count. The silence is
+    // still measured against every payment ever made, so a customer who paid
+    // last month is not called silent just because the payment falls outside
+    // the window being looked at.
+    if (!inRange(inv.date || '')) continue;
     const key = keyOf(inv);
     const row = byCustomer.get(key) || {
       id: inv.customerId || '', name: inv.customerName || '—',
@@ -552,8 +570,9 @@ async function buildQuiet() {
         el('div', { class: 'stat-value', text: `${neverPaid.length} · ${money(neverOwed)}` })),
     ),
     el('p', { class: 'text-small text-muted mb-1', html:
-      `Customers still owing money as of <strong>${esc(fmtDate(asOf))}</strong> whose last payment was `
-      + `before <strong>${esc(fmtDate(cutoff))}</strong> — or who have never paid at all. `
+      `Customers with unpaid invoices dated <strong>${esc(fmtDate(state.from))}</strong> to `
+      + `<strong>${esc(fmtDate(state.to))}</strong> whose last payment — on any invoice, at any time — was `
+      + `before <strong>${esc(fmtDate(cutoff))}</strong>, or who have never paid at all. `
       + `Biggest balance first.` }),
   );
 
@@ -596,7 +615,7 @@ async function buildQuiet() {
     columns,
     rows: list,
     onRowClick: (r) => { if (r.id) location.href = `statements.html?customer=${encodeURIComponent(r.id)}`; },
-  }), summary, `As of ${fmtDate(asOf)} · no payment since ${fmtDate(cutoff)}`);
+  }), summary, `Invoices ${fmtDate(state.from)} — ${fmtDate(state.to)} · no payment since ${fmtDate(cutoff)}`);
 }
 
 // ===========================================================================

@@ -7,7 +7,7 @@
 
 import {
   db, doc, runTransaction, serverTimestamp, today, addDays, addMonths,
-  fromIso, parseQty, parseRate, nextNumber, searchBlob,
+  fromIso, parseQty, parseRate, nextNumber, searchBlob, loadAll, writeBatch,
 } from './app.js';
 
 // ===========================================================================
@@ -545,6 +545,88 @@ export async function applyInvoiceDeltas(deltas, settings) {
       });
     });
   });
+}
+
+/**
+ * Rebuilds invoice paid amounts from the payments recorded against them.
+ *
+ * Express Invoice writes a paid figure onto the invoice itself, and the import
+ * takes it at face value. On this shop's data that figure is sometimes right
+ * and sometimes badly stale — one customer's invoice arrived showing $90 paid
+ * while five payments totalling $990 sat against it — so the invoice cannot be
+ * the last word on what has been paid. The payment records can: each one says
+ * which invoice it was for and how much of it went there.
+ *
+ * The one thing this deliberately will not do is touch an invoice that has no
+ * payment linked to it. A payment whose invoice was never imported, or which
+ * was never applied to anything in the old program, leaves no link — and
+ * setting those invoices to zero would wipe a paid figure that is the only
+ * record left of the money. Silence is not evidence of nothing.
+ *
+ * With `preview` it reports what it would change and writes nothing.
+ */
+export async function rebuildPaidFromPayments({ preview = false, onProgress = () => {} } = {}) {
+  onProgress({ phase: 'loading' });
+  const [invoices, payments] = await Promise.all([loadAll('invoices'), loadAll('payments')]);
+
+  const applied = new Map();
+  for (const payment of payments) {
+    for (const allocation of payment.allocations || []) {
+      if (!allocation.invoiceId) continue;
+      applied.set(
+        allocation.invoiceId,
+        (applied.get(allocation.invoiceId) || 0) + Math.round(Number(allocation.amountCents) || 0),
+      );
+    }
+  }
+
+  const changes = [];
+  for (const invoice of invoices) {
+    if (!applied.has(invoice.id)) continue;
+    const paid = Math.max(0, applied.get(invoice.id));
+    const was = Math.round(Number(invoice.paidCents) || 0);
+    if (paid === was) continue;
+    changes.push({
+      id: invoice.id,
+      number: invoice.number || '',
+      was,
+      now: paid,
+      totalCents: Math.round(Number(invoice.totalCents) || 0),
+      invoice,
+    });
+  }
+
+  const summary = {
+    invoices: invoices.length,
+    payments: payments.length,
+    linked: applied.size,
+    changed: changes.length,
+    wasTotal: changes.reduce((sum, c) => sum + c.was, 0),
+    nowTotal: changes.reduce((sum, c) => sum + c.now, 0),
+    examples: changes.slice(0, 8).map((c) => ({ number: c.number, was: c.was, now: c.now })),
+  };
+  if (preview || !changes.length) return summary;
+
+  let batch = writeBatch(db);
+  let ops = 0;
+  let done = 0;
+  for (const change of changes) {
+    const next = { ...change.invoice, paidCents: change.now };
+    if (next.status === 'draft' && change.now > 0) next.status = 'sent';
+    batch.update(doc(db, 'invoices', change.id), {
+      paidCents: change.now,
+      balanceCents: next.voided ? 0 : change.totalCents - change.now,
+      paymentStatus: derivePaymentStatus(next),
+      status: next.status,
+      updatedAt: serverTimestamp(),
+    });
+    ops += 1;
+    done += 1;
+    if (ops >= 400) { await batch.commit(); batch = writeBatch(db); ops = 0; onProgress({ phase: 'writing', done, total: changes.length }); }
+  }
+  if (ops) await batch.commit();
+  onProgress({ phase: 'done', done, total: changes.length });
+  return summary;
 }
 
 /** Difference between a payment's old and new allocations. */
