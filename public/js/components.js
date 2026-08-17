@@ -37,11 +37,30 @@ export function autocomplete(input, {
   emptyAction,          // { label, onClick }
 } = {}) {
   const wrap = el('div', { class: 'ac' });
-  input.replaceWith(wrap);
-  wrap.append(input);
-
   const list = el('div', { class: 'ac-list', role: 'listbox' });
-  wrap.append(list);
+
+  /**
+   * The dropdown lives in a wrapper placed around the input.
+   *
+   * Wrapping it before the caller has put the input on the page is worse than
+   * useless: the caller then appends the input itself, which lifts it straight
+   * back out of the wrapper and leaves the wrapper — and with it the entire
+   * dropdown — orphaned. Nothing throws, the box just never suggests anything,
+   * which is how the Statements screen ended up with a customer field that
+   * could not pick a customer. So it waits until the input is really in the
+   * document, whichever order the caller does things in.
+   */
+  let attempts = 0;
+  const wrapInput = () => {
+    if (wrap.isConnected) return;
+    if (!input.isConnected) {
+      if (attempts++ < 60) requestAnimationFrame(wrapInput);
+      return;
+    }
+    input.replaceWith(wrap);
+    wrap.append(input, list);
+  };
+  wrapInput();
 
   let rows = [];
   let activeIndex = -1;

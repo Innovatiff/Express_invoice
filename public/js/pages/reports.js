@@ -415,7 +415,7 @@ async function buildAged() {
   }
   const list = [...byCustomer.values()].sort((a, b) => b.total - a.total);
 
-  lastHeader = ['Customer', ...AGING_BUCKETS.map((b) => `${es(b.key)} / ${en(b.key)}`), 'Total'];
+  lastHeader = ['Customer', ...AGING_BUCKETS.map((b) => T(b.key)), 'Total'];
   lastRows = list.map((r) => [r.name, ...r.buckets.map((c) => c / 100), r.total / 100]);
 
   if (!list.length) return reportCard('rep_aged', noRows());
@@ -574,7 +574,7 @@ async function buildQuoteConversion() {
   lastHeader = ['Quote', 'Date', 'Customer', 'Total', 'Status'];
   lastRows = list.map((r) => [
     r.number, r.date, r.customerName, (Number(r.totalCents) || 0) / 100,
-    `${es(statusKey(displayStatus(r, asOf)))} / ${en(statusKey(displayStatus(r, asOf)))}`,
+    T(statusKey(displayStatus(r, asOf))),
   ]);
 
   const summary = el('div', { class: 'stat-row' },
@@ -623,7 +623,7 @@ function exportCsv() {
   downloadFile(
     `${state.report}-${state.from}-${state.to}.csv`,
     '﻿' + toCSV([
-      [`${es(name.labelKey)} / ${en(name.labelKey)}`],
+      [T(name.labelKey)],
       [`${T('date_from')} ${state.from}`, `${T('date_to')} ${state.to}`],
       [],
       lastHeader,
