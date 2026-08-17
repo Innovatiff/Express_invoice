@@ -245,6 +245,12 @@ export function recalc(document_, settings) {
 
   // Document-level discount: a percentage wins if one is set, otherwise the
   // flat amount the owner typed stands as-is.
+  //
+  // Note that discountCents is both an input here and an output — a percentage
+  // is resolved into it. So whoever clears a percentage has to clear the amount
+  // with it, or the figure this last computed comes straight back as if it had
+  // been typed by hand. The editor does exactly that; imports set one or the
+  // other and never both.
   const docPct = parseRate(d.discountPct);
   d.discountPct = docPct;
   const discount = docPct

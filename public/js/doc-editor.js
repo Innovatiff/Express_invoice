@@ -113,6 +113,9 @@ export async function mountDocEditor(type) {
   let tbody;
   let focusedRow = 0;
   let totalsHost;
+  // Set while refreshTotals puts focus back into the box being typed in, so the
+  // select-on-focus below does not wipe out the caret it just restored.
+  let restoringFocus = false;
 
   // ---- Render ---------------------------------------------------------------
 
@@ -563,13 +566,46 @@ export async function mountDocEditor(type) {
   function refreshTotals() {
     recalc(doc_, settings);
 
+    // This table is rebuilt from scratch on every keystroke, which would
+    // otherwise pull the box out from under whoever is typing in it: focus
+    // lost after a single character, and a half-typed "12." rewritten to "12"
+    // the moment recalc parses it — so the next digit lands on "125". The
+    // field being typed into is therefore put back exactly as it was, raw text
+    // and caret included, rather than re-rendered from the parsed value.
+    // Clicking a box that already reads "0.00" should replace it, not insert
+    // ahead of it — otherwise typing 15.50 into shipping leaves "15.500.00".
+    // Same convention as arrowing into a line cell.
+    const selectOnFocus = (e) => { if (!restoringFocus) e.currentTarget.select(); };
+
+    const active = document.activeElement;
+    const typing = active && active.dataset && active.dataset.totalsField
+      ? {
+        field: active.dataset.totalsField,
+        value: active.value,
+        start: active.selectionStart,
+        end: active.selectionEnd,
+      }
+      : null;
+
     // Discount: a percentage box beside the resulting amount.
     const pctInput = el('input', {
       type: 'text', class: 'input-num pct', inputmode: 'decimal',
       value: doc_.discountPct ? String(doc_.discountPct) : '',
+      dataset: { totalsField: 'discount' },
       'aria-label': T('discount'),
     });
-    pctInput.addEventListener('input', () => { doc_.discountPct = parseRate(pctInput.value); markDirty(); refreshTotals(); });
+    pctInput.addEventListener('input', () => {
+      doc_.discountPct = parseRate(pctInput.value);
+      // This box is the only discount input on the screen, so emptying it means
+      // no discount. Without this the amount recalc last worked out from the
+      // percentage stays in discountCents, and recalc reads it straight back as
+      // though it were a flat discount typed by hand — so the discount could be
+      // raised and changed but never removed.
+      if (!doc_.discountPct) doc_.discountCents = 0;
+      markDirty();
+      refreshTotals();
+    });
+    pctInput.addEventListener('focus', selectOnFocus);
     const discCell = el('td', {},
       el('div', { class: 'totals-inline' }, pctInput, el('span', { text: '%' }),
         el('span', { text: money(-doc_.discountCents) })),
@@ -577,10 +613,13 @@ export async function mountDocEditor(type) {
 
     const shipInput = el('input', {
       type: 'text', class: 'input-money', inputmode: 'decimal',
-      value: moneyInput(doc_.shippingCents), 'aria-label': T('shipping'),
+      value: moneyInput(doc_.shippingCents),
+      dataset: { totalsField: 'shipping' },
+      'aria-label': T('shipping'),
     });
     shipInput.addEventListener('input', () => { doc_.shippingCents = parseMoney(shipInput.value); markDirty(); refreshTotals(); });
     shipInput.addEventListener('blur', () => { shipInput.value = moneyInput(doc_.shippingCents); });
+    shipInput.addEventListener('focus', selectOnFocus);
 
     const table = el('table', { class: 'totals' });
     const tb = el('tbody');
@@ -621,6 +660,17 @@ export async function mountDocEditor(type) {
       el('div', { class: 'mb-1', style: 'text-align:right' }, el('span', { html: statusPill(doc_) })),
       table,
     );
+
+    if (typing) {
+      const restored = totalsHost.querySelector(`[data-totals-field="${typing.field}"]`);
+      if (restored) {
+        restoringFocus = true;
+        restored.value = typing.value;
+        restored.focus();
+        try { restored.setSelectionRange(typing.start, typing.end); } catch { /* caret is a nicety */ }
+        restoringFocus = false;
+      }
+    }
 
     // Keep the per-line amount cells in step.
     Array.from(tbody.children).forEach((tr, i) => {
