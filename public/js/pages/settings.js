@@ -13,6 +13,9 @@ import {
 import {
   rebuildPaidFromPayments,
 } from '../model.js';
+import {
+  onInstallable, promptInstall, isInstalled,
+} from '../pwa.js';
 
 setPageTitle('nav_settings');
 const { user, settings } = await initShell('settings.html');
@@ -255,6 +258,54 @@ page.append(card('set_account', el('div', {},
 // ---------------------------------------------------------------------------
 // Data / backup
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Installing onto this computer
+//
+// Chrome decides for itself when a site may be installed and only then hands
+// over the event that opens the dialog. So the button reflects what Chrome
+// will actually allow right now, and says what to do when the answer is "not
+// from a button" — rather than sitting there dead.
+// ---------------------------------------------------------------------------
+
+const installButton = el('button', {
+  class: 'btn btn-primary', type: 'button', text: 'Install on this computer',
+  onclick: async () => {
+    installButton.disabled = true;
+    const outcome = await promptInstall();
+    installButton.disabled = false;
+    if (outcome === 'accepted') installNote.textContent = 'Installed. Look for it with your other apps.';
+    else if (outcome === 'dismissed') installNote.textContent = 'Not installed. You can run this again any time.';
+  },
+});
+const installNote = el('p', { class: 'text-small text-muted mt-1' });
+
+page.append(card('set_install', el('div', {},
+  el('p', { class: 'text-small text-muted', html:
+    'Puts this on the machine like any other program \u2014 its own window and its own icon, '
+    + 'no address bar, and it opens straight to the invoice screen. It is the same app and the '
+    + 'same data; only the window changes.' }),
+  el('div', { class: 'form-row mt-2' }, installButton),
+  installNote,
+)));
+
+if (isInstalled()) {
+  installButton.classList.add('hidden');
+  installNote.textContent = 'Already installed \u2014 you are running it now.';
+} else {
+  onInstallable((ready) => {
+    installButton.disabled = !ready;
+    if (ready) {
+      installNote.textContent = '';
+    } else {
+      // Chrome offers this on its own terms; when it will not, the menu route
+      // always works, and Safari and Firefox have no button at all.
+      installNote.innerHTML = 'Your browser is not offering an install button on this page. '
+        + 'In Chrome or Edge you can always use the menu (\u22ee) \u2192 <strong>Cast, save and share</strong> '
+        + '\u2192 <strong>Install page as app</strong>, or click the install icon in the address bar.';
+    }
+  });
+}
 
 page.append(card('set_data', el('div', {},
   el('p', { class: 'text-small text-muted',
