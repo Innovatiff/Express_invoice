@@ -15,6 +15,7 @@
 // ---------------------------------------------------------------------------
 
 import { el, T, money } from './app.js';
+import { icon } from './icons.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -34,22 +35,22 @@ function svgEl(tag, attrs = {}) {
 // ---------------------------------------------------------------------------
 
 const NODES = [
-  { id: 'customers', labelKey: 'nav_customers', href: 'customers.html', icon: '☺',
+  { id: 'customers', labelKey: 'nav_customers', href: 'customers.html', icon: 'users',
     row: 1, col: 1, tone: 'input', newHref: 'customer.html?new=1', newKey: 'act_new_customer' },
-  { id: 'items', labelKey: 'nav_items', href: 'items.html', icon: '▧',
+  { id: 'items', labelKey: 'nav_items', href: 'items.html', icon: 'box',
     row: 1, col: 2, tone: 'input', newHref: 'item.html?new=1', newKey: 'act_new_item' },
-  { id: 'recurring', labelKey: 'nav_recurring', href: 'recurring.html', icon: '↻',
+  { id: 'recurring', labelKey: 'nav_recurring', href: 'recurring.html', icon: 'refresh',
     row: 1, col: 3, tone: 'input' },
 
-  { id: 'quotes', labelKey: 'nav_quotes', href: 'quotes.html', icon: '◇',
+  { id: 'quotes', labelKey: 'nav_quotes', href: 'quotes.html', icon: 'tag',
     row: 2, col: 1, tone: 'flow', newHref: 'quote.html?new=1', newKey: 'act_new_quote', accel: 'F3' },
-  { id: 'orders', labelKey: 'nav_orders', href: 'orders.html', icon: '▦',
+  { id: 'orders', labelKey: 'nav_orders', href: 'orders.html', icon: 'cart',
     row: 2, col: 2, tone: 'flow', newHref: 'order.html?new=1', newKey: 'act_new_order', accel: 'F4' },
-  { id: 'invoices', labelKey: 'nav_invoices', href: 'invoices.html', icon: '▤',
+  { id: 'invoices', labelKey: 'nav_invoices', href: 'invoices.html', icon: 'invoice',
     row: 2, col: 3, tone: 'hero', newHref: 'invoice.html?new=1', newKey: 'act_new_invoice', accel: 'F2' },
-  { id: 'payments', labelKey: 'nav_payments', href: 'payments.html', icon: '⛁',
+  { id: 'payments', labelKey: 'nav_payments', href: 'payments.html', icon: 'banknote',
     row: 2, col: 4, tone: 'flow', newHref: 'payment.html?new=1', newKey: 'act_new_payment', accel: 'F8' },
-  { id: 'statements', labelKey: 'nav_statements', href: 'statements.html', icon: '☰',
+  { id: 'statements', labelKey: 'nav_statements', href: 'statements.html', icon: 'receipt',
     row: 2, col: 5, tone: 'flow' },
 ];
 
@@ -66,10 +67,10 @@ const LINKS = [
 ];
 
 const TOOLS = [
-  { labelKey: 'nav_reports', href: 'reports.html', icon: '◪' },
-  { labelKey: 'nav_import', href: 'import.html', icon: '⤓' },
-  { labelKey: 'nav_settings', href: 'settings.html', icon: '⚙' },
-  { labelKey: 'nav_shortcuts', href: 'shortcuts.html', icon: '⌨' },
+  { labelKey: 'nav_reports', href: 'reports.html', icon: 'chart' },
+  { labelKey: 'nav_import', href: 'import.html', icon: 'download' },
+  { labelKey: 'nav_settings', href: 'settings.html', icon: 'gear' },
+  { labelKey: 'nav_shortcuts', href: 'shortcuts.html', icon: 'keyboard' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -98,7 +99,7 @@ export function renderWorkflow(metrics = {}) {
     });
 
     const main = el('a', { class: 'wf-node-main', href: node.href },
-      el('span', { class: 'wf-node-icon', 'aria-hidden': 'true', text: node.icon }),
+      el('span', { class: 'wf-node-icon', 'aria-hidden': 'true', html: icon(node.icon) }),
       el('span', { class: 'wf-node-label', text: T(node.labelKey) }),
       el('span', { class: 'wf-node-value', text: m.value ?? '' }),
       el('span', { class: 'wf-node-caption', text: m.caption ?? '' }),
@@ -127,7 +128,7 @@ export function renderWorkflow(metrics = {}) {
 
   const tools = el('div', { class: 'wf-tools' },
     ...TOOLS.map((t) => el('a', { class: 'wf-tool', href: t.href },
-      el('span', { class: 'wf-tool-icon', 'aria-hidden': 'true', text: t.icon }),
+      el('span', { class: 'wf-tool-icon', 'aria-hidden': 'true', html: icon(t.icon) }),
       el('span', { text: T(t.labelKey) }),
     )),
   );

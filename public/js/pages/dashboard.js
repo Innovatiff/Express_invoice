@@ -23,7 +23,7 @@ await initShell('dashboard.html');
 const page = $('#page');
 
 page.append(pageHeader('nav_home', [
-  { key: 'nav_quick', variant: 'primary', onClick: () => { location.href = 'quick.html'; } },
+  { key: 'nav_quick', variant: 'primary', className: 'hide-on-phone', onClick: () => { location.href = 'quick.html'; } },
   { key: 'act_new_invoice', accel: 'F2', onClick: () => { location.href = 'invoice.html?new=1'; } },
   { key: 'act_new_quote', accel: 'F3', onClick: () => { location.href = 'quote.html?new=1'; } },
   { key: 'act_new_payment', accel: 'F8', onClick: () => { location.href = 'payment.html?new=1'; } },

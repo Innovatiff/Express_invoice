@@ -17,6 +17,7 @@ import {
 import {
   T, L, esc,
 } from './i18n.js';
+import { icon } from './icons.js';
 
 export { T, L, esc };
 export {
@@ -330,25 +331,25 @@ function showConfigError() {
 
 const NAV = [
   { group: 'nav_home', items: [
-    { key: 'nav_home', href: 'dashboard.html', icon: '⌂' },
-    { key: 'nav_quick', href: 'quick.html', icon: '⚡' },
+    { key: 'nav_home', href: 'dashboard.html', icon: 'home' },
+    { key: 'nav_quick', href: 'quick.html', icon: 'bolt', phones: false },
   ] },
   { group: 'nav_sales', items: [
-    { key: 'nav_invoices', href: 'invoices.html', icon: '▤' },
-    { key: 'nav_quotes', href: 'quotes.html', icon: '◇' },
-    { key: 'nav_orders', href: 'orders.html', icon: '▦' },
-    { key: 'nav_payments', href: 'payments.html', icon: '⛁' },
-    { key: 'nav_recurring', href: 'recurring.html', icon: '↻' },
+    { key: 'nav_invoices', href: 'invoices.html', icon: 'invoice' },
+    { key: 'nav_quotes', href: 'quotes.html', icon: 'tag' },
+    { key: 'nav_orders', href: 'orders.html', icon: 'cart' },
+    { key: 'nav_payments', href: 'payments.html', icon: 'banknote' },
+    { key: 'nav_recurring', href: 'recurring.html', icon: 'refresh' },
   ] },
   { group: 'nav_catalog', items: [
-    { key: 'nav_customers', href: 'customers.html', icon: '☺' },
-    { key: 'nav_items', href: 'items.html', icon: '▧' },
+    { key: 'nav_customers', href: 'customers.html', icon: 'users' },
+    { key: 'nav_items', href: 'items.html', icon: 'box' },
   ] },
   { group: 'nav_tools', items: [
-    { key: 'nav_statements', href: 'statements.html', icon: '☰' },
-    { key: 'nav_reports', href: 'reports.html', icon: '◪' },
-    { key: 'nav_import', href: 'import.html', icon: '⤓' },
-    { key: 'nav_settings', href: 'settings.html', icon: '⚙' },
+    { key: 'nav_statements', href: 'statements.html', icon: 'receipt' },
+    { key: 'nav_reports', href: 'reports.html', icon: 'chart' },
+    { key: 'nav_import', href: 'import.html', icon: 'download' },
+    { key: 'nav_settings', href: 'settings.html', icon: 'gear' },
   ] },
 ];
 
@@ -371,16 +372,18 @@ export async function initShell(activeHref) {
     }
     for (const item of group.items) {
       nav.append(el('a', {
-        class: 'nav-link' + (item.href === active ? ' is-active' : ''),
+        class: 'nav-link' + (item.href === active ? ' is-active' : '') + (item.phones === false ? ' hide-on-phone' : ''),
         href: item.href,
-        html: `<span class="nav-icon" aria-hidden="true">${item.icon}</span>${L(item.key)}`,
+        html: `<span class="nav-icon" aria-hidden="true">${icon(item.icon)}</span><span class="nav-label">${L(item.key)}</span>`,
       }));
     }
   }
   nav.append(
     el('div', { class: 'nav-spacer' }),
-    el('a', { class: 'nav-link nav-link--muted', href: 'shortcuts.html',
-      html: `<span class="nav-icon" aria-hidden="true">⌨</span>${L('nav_shortcuts')}` }),
+    el('div', { class: 'nav-foot' },
+      el('a', { class: 'nav-link nav-link--muted' + (active === 'shortcuts.html' ? ' is-active' : ''), href: 'shortcuts.html',
+        html: `<span class="nav-icon" aria-hidden="true">${icon('keyboard')}</span><span class="nav-label">${L('nav_shortcuts')}</span><kbd class="nav-kbd">?</kbd>` }),
+    ),
   );
 
   const topbar = el('header', { class: 'topbar' },
@@ -436,7 +439,7 @@ export function pageHeader(titleKey, buttons = [], subtitle = '') {
     el('div', { class: 'pagebar-actions' },
       ...buttons.filter(Boolean).map((b) =>
         el('button', {
-          class: 'btn ' + (b.variant ? 'btn-' + b.variant : 'btn-default') + (b.id ? '' : ''),
+          class: 'btn ' + (b.variant ? 'btn-' + b.variant : 'btn-default') + (b.className ? ' ' + b.className : ''),
           type: 'button',
           id: b.id || null,
           title: b.hint || null,

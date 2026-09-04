@@ -16,7 +16,7 @@
 // guessing at API responses would be a liability, not a feature.
 // ---------------------------------------------------------------------------
 
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CACHE = `express-invoicing-${VERSION}`;
 
 // The screens and their code. Listed one by one rather than through addAll so
