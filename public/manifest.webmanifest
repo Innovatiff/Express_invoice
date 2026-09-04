@@ -10,30 +10,75 @@
   "background_color": "#f1f4f8",
   "theme_color": "#12243d",
   "lang": "en",
-  "categories": ["business", "finance", "productivity"],
+  "categories": [
+    "business",
+    "finance",
+    "productivity"
+  ],
   "icons": [
-    { "src": "img/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "img/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "img/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "img/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "img/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "img/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ],
   "shortcuts": [
+    {
+      "name": "Quick Actions",
+      "short_name": "Quick",
+      "url": "/quick.html",
+      "icons": [
+        {
+          "src": "img/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
     {
       "name": "New Invoice",
       "short_name": "Invoice",
       "url": "/invoice.html?new=1",
-      "icons": [{ "src": "img/icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "img/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Record Payment",
       "short_name": "Payment",
       "url": "/payment.html?new=1",
-      "icons": [{ "src": "img/icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "img/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Customers",
       "short_name": "Customers",
       "url": "/customers.html",
-      "icons": [{ "src": "img/icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "img/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }

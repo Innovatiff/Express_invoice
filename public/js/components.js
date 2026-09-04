@@ -35,6 +35,7 @@ export function autocomplete(input, {
   onFreeText,           // (text) => void, fired on blur when nothing was picked
   minChars = 0,
   emptyAction,          // { label, onClick }
+  showAllOnFocus = true, // false: stay quiet until something is typed
 } = {}) {
   const wrap = el('div', { class: 'ac' });
   const list = el('div', { class: 'ac-list', role: 'listbox' });
@@ -77,6 +78,7 @@ export function autocomplete(input, {
 
   const paint = () => {
     const term = input.value.trim();
+    if (!term && !showAllOnFocus) { list.innerHTML = ''; close(); return; }
     const all = source() || [];
     rows = term.length >= minChars
       ? all.filter((r) => (filter ? filter(r, term) : matchesSearch(r._blob || '', term))).slice(0, 40)
@@ -142,7 +144,13 @@ export function autocomplete(input, {
       if (list.classList.contains('is-open') && activeIndex >= 0) { e.preventDefault(); choose(activeIndex); }
       else close();
     } else if (e.key === 'Escape') {
-      if (list.classList.contains('is-open')) { e.stopPropagation(); close(); }
+      if (list.classList.contains('is-open')) {
+        close();
+        // With something typed, Esc clears the suggestions and stops there.
+        // With nothing typed the list only opened because the box was focused,
+        // so Esc goes on to whatever the screen does with it — step back, close.
+        if (input.value.trim()) e.stopPropagation();
+      }
     } else if (e.key === 'Tab') {
       if (list.classList.contains('is-open') && activeIndex >= 0) choose(activeIndex);
       else close();
@@ -158,8 +166,9 @@ export function autocomplete(input, {
 }
 
 /** Customer picker wired to the cached customer list. */
-export function customerAutocomplete(input, customers, onPick, onNew) {
+export function customerAutocomplete(input, customers, onPick, onNew, opts = {}) {
   return autocomplete(input, {
+    ...opts,
     source: () => customers(),
     render: (c) => {
       const sub = [c.company !== c.name ? c.company : '', c.phone || c.mobile, c.city]
@@ -173,8 +182,9 @@ export function customerAutocomplete(input, customers, onPick, onNew) {
 }
 
 /** Item picker: matches on code or description. */
-export function itemAutocomplete(input, items, onPick) {
+export function itemAutocomplete(input, items, onPick, opts = {}) {
   return autocomplete(input, {
+    ...opts,
     source: () => items(),
     render: (i) => `<strong>${esc(i.code || '')}</strong> ${esc(truncate(i.description, 60))}` +
       `<span class="ac-sub">${money(i.priceCents)}${i.category ? ' · ' + esc(i.category) : ''}</span>`,

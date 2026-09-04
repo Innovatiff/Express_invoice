@@ -29,6 +29,7 @@ export const DICT = {
 
   // ---- Navigation / screens ----
   nav_home: 'Home',
+  nav_quick: 'Quick Actions',
   nav_invoices: 'Invoices',
   nav_quotes: 'Quotes',
   nav_orders: 'Orders',

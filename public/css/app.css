@@ -1206,3 +1206,307 @@ kbd {
 .cols-found > summary:hover { color: var(--text); }
 .cols-found[open] > summary { margin-bottom: 4px; }
 .cols-found .map-table { background: var(--surface); }
+
+/* ==========================================================================
+   Quick Actions
+   A separate, focused surface: one question at a time, one thing to fill in,
+   Enter to move on. The main app is a desk covered in tools; this is a single
+   sheet of paper. Everything here is sized for someone standing at a counter
+   with a customer waiting.
+   ========================================================================== */
+
+.qa-body {
+  margin: 0;
+  min-height: 100vh;
+  background: linear-gradient(160deg, #12243d 0%, #1a3a5f 100%);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+.qa-wrap {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 18px 40px;
+}
+
+/* --- Header ------------------------------------------------------------- */
+
+.qa-top {
+  width: min(680px, 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 13px;
+  margin-bottom: 18px;
+}
+.qa-top-brand { display: flex; align-items: center; gap: 10px; font-weight: 600; color: #fff; }
+.qa-top-brand img { width: 26px; height: 26px; border-radius: 7px; }
+.qa-top a { color: rgba(255, 255, 255, 0.82); text-decoration: none; }
+.qa-top a:hover { color: #fff; text-decoration: underline; }
+
+/* --- The stage ---------------------------------------------------------- */
+
+.qa-stage {
+  width: min(680px, 100%);
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(5, 15, 30, 0.45);
+  /* No overflow clipping: the customer and item pickers drop a list below
+     their box, and a clipped list cut off the buttons under it. */
+}
+
+.qa-progress { height: 4px; background: var(--surface-3); border-radius: 16px 16px 0 0; overflow: hidden; }
+.qa-progress > div {
+  height: 100%;
+  background: var(--primary);
+  transition: width 260ms ease;
+}
+
+.qa-stage-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 28px 0;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+}
+.qa-stage-head .qa-count { letter-spacing: 0; text-transform: none; font-weight: 500; }
+
+.qa-panel { padding: 22px 28px 26px; }
+.qa-panel.qa-enter { animation: qa-in 220ms ease both; }
+@keyframes qa-in {
+  from { opacity: 0; transform: translateX(22px); }
+  to   { opacity: 1; transform: none; }
+}
+.qa-panel.qa-enter-back { animation: qa-in-back 220ms ease both; }
+@keyframes qa-in-back {
+  from { opacity: 0; transform: translateX(-22px); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .qa-panel.qa-enter, .qa-panel.qa-enter-back { animation: none; }
+}
+
+/* --- Question + one input ------------------------------------------------ */
+
+.qa-q {
+  margin: 0 0 6px;
+  font-size: 23px;
+  line-height: 1.25;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.qa-hint { margin: 0 0 18px; color: var(--text-2); font-size: 14px; }
+.qa-context {
+  display: inline-block;
+  margin: 0 0 14px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.qa-input,
+.qa-textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 21px;
+  padding: 13px 16px;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.qa-input:focus, .qa-textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--primary-light);
+}
+.qa-textarea { min-height: 120px; resize: vertical; font-size: 17px; line-height: 1.45; }
+.qa-money { font-family: var(--mono); font-size: 26px; text-align: right; }
+.qa-prefix { position: relative; }
+.qa-prefix > span {
+  position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+  font-size: 22px; color: var(--muted); pointer-events: none;
+}
+.qa-prefix > input { padding-left: 40px; }
+.qa-stage .ac { width: 100%; }
+.qa-stage .ac-list { font-size: 15px; border-radius: 10px; }
+.qa-stage .ac-item { padding: 10px 14px; font-size: 15px; }
+.qa-stage .ac-item .ac-sub { font-size: 12.5px; }
+
+.qa-error {
+  margin: 10px 0 0;
+  color: var(--red);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+/* --- Choice cards --------------------------------------------------------- */
+
+.qa-choices { display: grid; gap: 10px; }
+.qa-choices.two { grid-template-columns: 1fr 1fr; }
+@media (max-width: 560px) { .qa-choices.two { grid-template-columns: 1fr; } }
+
+.qa-choice {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  padding: 14px 16px;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 100ms ease, background 100ms ease, box-shadow 100ms ease;
+}
+.qa-choice:hover, .qa-choice:focus-visible {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(26, 95, 180, 0.12);
+}
+.qa-choice.is-selected { border-color: var(--primary); background: var(--primary-light); }
+.qa-choice-key {
+  flex: 0 0 auto;
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  border-radius: 7px;
+  background: var(--surface-3);
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.qa-choice:hover .qa-choice-key, .qa-choice.is-selected .qa-choice-key { background: var(--primary); color: #fff; }
+.qa-choice-body { flex: 1 1 auto; min-width: 0; }
+.qa-choice-title { font-size: 16px; font-weight: 600; }
+.qa-choice-desc { font-size: 13px; color: var(--text-2); margin-top: 2px; }
+.qa-choice-right { flex: 0 0 auto; font-family: var(--mono); font-size: 15px; font-weight: 600; }
+
+/* --- Menu ----------------------------------------------------------------- */
+
+.qa-menu { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) { .qa-menu { grid-template-columns: 1fr; } }
+.qa-action {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  font: inherit;
+  padding: 18px 18px 16px;
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  min-height: 118px;
+  transition: border-color 100ms ease, transform 100ms ease, box-shadow 100ms ease;
+}
+.qa-action:hover, .qa-action:focus-visible {
+  border-color: var(--primary);
+  outline: none;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px rgba(20, 33, 51, 0.12);
+}
+.qa-action-top { display: flex; align-items: center; justify-content: space-between; }
+.qa-action-icon {
+  width: 38px; height: 38px;
+  display: grid; place-items: center;
+  border-radius: 10px;
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  font-size: 19px;
+}
+.qa-action-title { font-size: 16.5px; font-weight: 650; }
+.qa-action-desc { font-size: 13px; color: var(--text-2); line-height: 1.4; }
+
+/* --- Review --------------------------------------------------------------- */
+
+.qa-review { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 4px; }
+.qa-review-row {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--surface-3);
+  font-size: 14.5px;
+}
+.qa-review-row:last-child { border-bottom: 0; }
+.qa-review-label { flex: 0 0 130px; color: var(--text-2); font-size: 13px; padding-top: 2px; }
+.qa-review-value { flex: 1 1 auto; min-width: 0; white-space: pre-line; }
+.qa-review-value strong { font-weight: 650; }
+.qa-review-edit {
+  flex: 0 0 auto; font: inherit; font-size: 12.5px; color: var(--primary);
+  background: none; border: 0; cursor: pointer; padding: 2px 4px;
+}
+.qa-review-edit:hover { text-decoration: underline; }
+.qa-total-row { background: var(--surface-2); font-weight: 650; }
+.qa-total-row .qa-review-value { font-family: var(--mono); font-size: 17px; text-align: right; }
+
+.qa-lines { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.qa-lines td { padding: 4px 0; vertical-align: top; }
+.qa-lines td.n { text-align: right; font-family: var(--mono); white-space: nowrap; padding-left: 12px; }
+.qa-lines .muted { color: var(--muted); font-size: 12px; }
+
+/* --- Footer buttons ------------------------------------------------------- */
+
+.qa-actions {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-top: 22px;
+}
+.qa-actions .btn { min-height: 44px; font-size: 15px; padding: 0 20px; border-radius: 10px; }
+.qa-actions .btn-primary { min-width: 160px; }
+.qa-kbd {
+  margin-left: 10px; padding: 1px 6px; border-radius: 5px;
+  background: rgba(255, 255, 255, 0.18); font-family: var(--mono); font-size: 11px; font-weight: 500;
+}
+.btn-default .qa-kbd { background: var(--surface-3); color: var(--text-2); }
+
+/* --- Done ------------------------------------------------------------------ */
+
+.qa-done { text-align: center; padding: 10px 0 4px; }
+.qa-done-mark {
+  width: 64px; height: 64px; margin: 0 auto 14px;
+  border-radius: 50%; display: grid; place-items: center;
+  background: var(--green-light); color: var(--green); font-size: 32px;
+}
+.qa-done h2 { margin: 0 0 6px; font-size: 22px; }
+.qa-done p { margin: 0; color: var(--text-2); font-size: 15px; }
+.qa-done-big { font-family: var(--mono); font-size: 30px; font-weight: 700; margin: 12px 0 2px; color: var(--text); }
+.qa-next { display: grid; gap: 10px; margin-top: 22px; }
+.qa-next .btn { min-height: 46px; font-size: 15px; border-radius: 10px; }
+
+/* --- Look-up result -------------------------------------------------------- */
+
+.qa-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+@media (max-width: 560px) { .qa-stats { grid-template-columns: 1fr; } }
+.qa-stat { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+.qa-stat-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+.qa-stat-value { font-family: var(--mono); font-size: 21px; font-weight: 700; margin-top: 4px; }
+.qa-stat.warn .qa-stat-value { color: var(--red); }
+.qa-stat.good .qa-stat-value { color: var(--green); }
+
+.qa-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: -3px; margin-right: 8px; }
+
+@media (max-width: 560px) {
+  .qa-wrap { padding: 14px 10px 30px; }
+  .qa-panel { padding: 18px 18px 22px; }
+  .qa-stage-head { padding: 14px 18px 0; }
+  .qa-q { font-size: 20px; }
+  .qa-input { font-size: 18px; }
+  .qa-review-label { flex-basis: 96px; }
+}

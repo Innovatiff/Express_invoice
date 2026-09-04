@@ -28,7 +28,7 @@ const SHELL = [
   'orders.html', 'order.html', 'payments.html', 'payment.html',
   'customers.html', 'customer.html', 'items.html', 'item.html',
   'recurring.html', 'statements.html', 'reports.html', 'search.html',
-  'import.html', 'settings.html', 'shortcuts.html', 'print.html',
+  'import.html', 'settings.html', 'shortcuts.html', 'print.html', 'quick.html',
   'css/app.css',
   'manifest.webmanifest',
   'img/icon-192.png', 'img/icon-512.png', 'img/favicon-32.png',

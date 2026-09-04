@@ -331,6 +331,7 @@ function showConfigError() {
 const NAV = [
   { group: 'nav_home', items: [
     { key: 'nav_home', href: 'dashboard.html', icon: '⌂' },
+    { key: 'nav_quick', href: 'quick.html', icon: '⚡' },
   ] },
   { group: 'nav_sales', items: [
     { key: 'nav_invoices', href: 'invoices.html', icon: '▤' },
