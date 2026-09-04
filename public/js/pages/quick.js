@@ -14,10 +14,11 @@ import {
   $, el, esc, T, requireAuth, getSettings, money, moneyInput, parseMoney,
   parseQty, fmtQty, fmtDate, today, addMonths, monthStart, yearStart, loadAll,
   where, saveRecord, nextNumber, peekCounter, formatNumber, toast, byDateDesc,
+  confirmDialog,
 } from '../app.js';
 import {
   DOC_TYPES, blankDoc, blankLine, blankCustomer, blankPayment, recalc,
-  attachCustomer, customerSearchBlob, autoAllocate, allocationDeltas,
+  attachCustomer, addressBlock, customerSearchBlob, autoAllocate, allocationDeltas,
   applyInvoiceDeltas, paymentTotals, stockDeltasForDoc, applyStockDeltas,
   PAYMENT_METHODS, displayStatus, statusKey,
 } from '../model.js';
@@ -47,15 +48,16 @@ try {
 const root = $('#quick');
 root.innerHTML = '';
 
-const brand = settings.businessName || T('app_name');
-root.append(el('div', { class: 'qa-top' },
-  el('div', { class: 'qa-top-brand' },
-    el('img', { src: 'img/icon-192.png', alt: '' }),
-    el('span', { text: brand }),
-  ),
-  el('div', {},
-    el('a', { href: 'dashboard.html', text: 'Open the full app' }),
-  ),
+const longDate = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+// Exit leaves whatever is in front of you: an action goes back to the menu,
+// the menu goes back to the full app.
+const exitButton = el('button', { type: 'button', class: 'qa-exit', html: '‹&nbsp; Exit', onclick: () => exit() });
+const barTitle = el('span', { text: 'Quick Actions' });
+root.append(el('header', { class: 'qa-bar' },
+  exitButton,
+  el('div', { class: 'qa-bar-title' }, el('img', { src: 'img/icon-192.png', alt: '' }), barTitle),
+  el('div', { class: 'qa-bar-date', text: longDate }),
 ));
 
 const progress = el('div', { class: 'qa-progress' }, el('div', { style: 'width:0%' }));
@@ -64,7 +66,17 @@ const headRight = el('span', { class: 'qa-count' });
 const head = el('div', { class: 'qa-stage-head' }, headLeft, headRight);
 const panelHost = el('div', {});
 const stage = el('div', { class: 'qa-stage' }, progress, head, panelHost);
-root.append(stage);
+root.append(el('main', { class: 'qa-main' }, stage));
+
+async function exit() {
+  if (!run) { location.href = 'dashboard.html'; return; }
+  // Past the first answer there is something to lose; ask before dropping it.
+  if (run.index > 0 && run.step?.kind !== 'done') {
+    const ok = await confirmDialog(`Leave this ${esc(run.action.title.toLowerCase())}? Nothing has been saved.`, { okKey: 'act_close', danger: true });
+    if (!ok) return;
+  }
+  showMenu();
+}
 
 // ===========================================================================
 // The wizard
@@ -83,9 +95,9 @@ function stepsOf() {
 
 function showMenu() {
   run = null;
+  stage.classList.add('is-menu');
+  barTitle.textContent = 'Quick Actions';
   progress.firstChild.style.width = '0%';
-  headLeft.textContent = 'Quick Actions';
-  headRight.textContent = fmtDate(today());
   renderPanel(menuPanel(), 'forward');
 }
 
@@ -108,9 +120,11 @@ function renderStep(direction) {
   const step = steps[run.index];
   // The "done" screen is not a question, so it is not counted as one.
   const total = steps.length - (steps[steps.length - 1].kind === 'done' ? 1 : 0);
+  stage.classList.remove('is-menu');
+  barTitle.textContent = run.action.title;
   progress.firstChild.style.width = step.kind === 'done' ? '100%' : `${Math.round(((run.index + 1) / total) * 100)}%`;
   headLeft.textContent = run.action.title;
-  headRight.textContent = step.kind === 'done' ? '' : `${run.index + 1} / ${total}`;
+  headRight.textContent = step.kind === 'done' ? '' : `Step ${run.index + 1} of ${total}`;
   const view = renderers[step.kind](step, run.state);
   renderPanel(view.node, direction);
   requestAnimationFrame(() => view.focus?.());
@@ -162,6 +176,10 @@ function finish(donePanel) {
 // Pieces every step shares
 // ---------------------------------------------------------------------------
 
+function narrow(...children) {
+  return el('div', { class: 'qa-narrow' }, ...children);
+}
+
 function question(step, state) {
   const frag = [];
   const context = typeof step.context === 'function' ? step.context(state) : step.context;
@@ -202,7 +220,7 @@ function choiceGrid(options, onPick, { columns = 1, selected } = {}) {
       opt.desc ? el('div', { class: 'qa-choice-desc', text: opt.desc }) : null),
     opt.right ? el('span', { class: 'qa-choice-right', text: opt.right }) : null,
   ));
-  const grid = el('div', { class: 'qa-choices' + (columns === 2 ? ' two' : '') }, ...cards);
+  const grid = el('div', { class: 'qa-choices' + (columns === 2 ? ' two' : columns === 3 ? ' three' : '') }, ...cards);
   grid.addEventListener('keydown', (e) => {
     const n = Number(e.key);
     if (n >= 1 && n <= cards.length) { e.preventDefault(); cards[n - 1].click(); return; }
@@ -226,7 +244,7 @@ const renderers = {
       placeholder: step.placeholder || '', autocomplete: 'off', inputmode: step.inputmode || null });
     const err = errorLine();
     return {
-      node: el('div', {}, ...question(step, state), input, err.node, footer()),
+      node: narrow(...question(step, state), input, err.node, footer()),
       focus: () => { input.focus(); input.select(); },
       showError: err.show,
       read() {
@@ -244,7 +262,7 @@ const renderers = {
     const input = el('textarea', { class: 'qa-textarea', placeholder: step.placeholder || '' });
     input.value = step.get(state) || '';
     return {
-      node: el('div', {}, ...question(step, state), input,
+      node: narrow(...question(step, state), input,
         el('p', { class: 'qa-hint', style: 'margin-top:8px', text: 'Enter for a new line · Ctrl+Enter to continue' }),
         footer()),
       focus: () => input.focus(),
@@ -259,7 +277,7 @@ const renderers = {
       value: current ? moneyInput(current) : '', placeholder: '0.00', autocomplete: 'off' });
     const err = errorLine();
     return {
-      node: el('div', {}, ...question(step, state),
+      node: narrow(...question(step, state),
         el('div', { class: 'qa-prefix' }, el('span', { text: settings.currencySymbol || '$' }), input),
         err.node, footer()),
       focus: () => { input.focus(); input.select(); },
@@ -280,7 +298,7 @@ const renderers = {
       value: fmtQty(step.get(state) || 1), autocomplete: 'off' });
     const err = errorLine();
     return {
-      node: el('div', {}, ...question(step, state), input, err.node, footer()),
+      node: narrow(...question(step, state), input, err.node, footer()),
       focus: () => { input.focus(); input.select(); },
       showError: err.show,
       read() {
@@ -323,7 +341,7 @@ const renderers = {
       record.searchBlob = customerSearchBlob(record);
       try {
         const id = await saveRecord('customers', null, record);
-        const made = { id, ...record, _blob: record.searchBlob, _label: name };
+        const made = { id, ...record, _blob: record.searchBlob, _label: name, _isNew: true };
         customers = [...customers, made].sort((a, b) => String(a.name).localeCompare(String(b.name)));
         invalidateStore();
         picked = made;
@@ -339,7 +357,7 @@ const renderers = {
     customerAutocomplete(input, () => customers, (c) => { picked = c; state.customer = c; advance(); }, create,
       { showAllOnFocus: false });
 
-    const node = el('div', {}, ...question(step, state), input, err.node, footer());
+    const node = narrow(...question(step, state), input, err.node, footer());
     return {
       node,
       focus: () => { input.focus(); input.select(); },
@@ -392,7 +410,7 @@ const renderers = {
     }, { showAllOnFocus: false });
 
     return {
-      node: el('div', {}, ...question(step, state), input, err.node, footer()),
+      node: narrow(...question(step, state), input, err.node, footer()),
       focus: () => { input.focus(); input.select(); },
       showError: err.show,
       read() {
@@ -413,6 +431,59 @@ const renderers = {
         return null;
       },
     };
+  },
+
+  // The address block as it will print. One key to confirm it; for a new
+  // customer there is nothing to confirm yet, so it opens straight into typing.
+  billto(step, state) {
+    const customer = state.customer;
+    const isNew = Boolean(customer?._isNew) || !String(customer?.address || '').trim();
+    const current = state.billTo ?? addressBlock(customer);
+    const err = errorLine();
+    const node = narrow(...question(step, state));
+    const view = { node, showError: err.show, keys: false };
+
+    const textarea = el('textarea', { class: 'qa-textarea', placeholder: 'Name\nStreet\nCity' });
+    textarea.value = current;
+
+    const editing = () => {
+      body.innerHTML = '';
+      body.append(textarea,
+        el('p', { class: 'qa-hint', style: 'margin-top:8px', text:
+          (isNew ? 'This is saved to the customer as well, so it is there next time. ' : '')
+          + 'Enter for a new line · Ctrl+Enter to continue' }),
+        err.node, footer());
+      view.keys = false;
+      view.read = () => {
+        const value = textarea.value.trim();
+        if (!value) return { error: 'Type who the invoice is for.' };
+        state.billTo = value;
+        return null;
+      };
+      textarea.focus();
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    };
+
+    const confirming = () => {
+      body.innerHTML = '';
+      const grid = choiceGrid([
+        { value: 'ok', title: 'That’s right', desc: 'Print it exactly like this.' },
+        { value: 'edit', title: 'Change it', desc: 'Fix a line, add a phone number, whatever is missing.' },
+      ], (value) => {
+        if (value === 'edit') { editing(); return; }
+        state.billTo = current;
+        next();
+      }, { columns: 2 });
+      body.append(el('div', { class: 'qa-block', text: current }), grid, footer({ showNext: false }));
+      view.keys = true;
+      view.read = () => { state.billTo = current; return null; };
+      grid.focusFirst();
+    };
+
+    const body = el('div', {});
+    node.append(body);
+    view.focus = () => (isNew ? editing() : confirming());
+    return view;
   },
 
   // Look at everything before it is written.
@@ -536,9 +607,37 @@ function lineSteps(state) {
 function previewDoc(state) {
   const doc = blankDoc(state.type, settings);
   if (state.customer) attachCustomer(doc, state.customer, settings);
+  if (state.billTo) doc.billTo = state.billTo;
   doc.lines = meaningfulLines(state).map((l) => ({ ...blankLine(), ...l }));
   recalc(doc, settings);
   return doc;
+}
+
+/**
+ * A Bill To typed for a customer who had no address yet becomes their address.
+ *
+ * The block prints the name first and the address under it, and the customer
+ * record keeps the address on its own — the same split the full editor makes
+ * when it creates a customer from an invoice. Nothing is written for a
+ * customer who already had an address: changing the block on one invoice is a
+ * change to that invoice, not to the customer.
+ */
+async function rememberAddress(state) {
+  const customer = state.customer;
+  if (!customer || !state.billTo) return;
+  if (!customer._isNew && String(customer.address || '').trim()) return;
+  const lines = state.billTo.split('\n').map((l) => l.trim()).filter(Boolean);
+  const name = String(customer.name || customer.company || '').trim().toLowerCase();
+  if (lines.length && lines[0].toLowerCase() === name) lines.shift();
+  const address = lines.join('\n').trim();
+  if (!address) return;
+  const record = {};
+  for (const [k, v] of Object.entries(customer)) if (!k.startsWith('_') && k !== 'id') record[k] = v;
+  record.address = address;
+  record.searchBlob = customerSearchBlob(record);
+  await saveRecord('customers', customer.id, record);
+  Object.assign(customer, { address, searchBlob: record.searchBlob, _blob: record.searchBlob });
+  invalidateStore();
 }
 
 function linesTable(doc) {
@@ -558,6 +657,7 @@ function documentReviewRows(state) {
   const doc = previewDoc(state);
   const rows = [
     { label: 'Customer', value: doc.customerName, step: 'customer' },
+    { label: 'Bill to', value: doc.billTo, step: 'billto' },
     { label: 'Items', node: linesTable(doc), step: 'item:0' },
   ];
   if (doc.taxCents) rows.push({ label: settings.tax1Name || T('tax'), html: money(doc.taxCents) });
@@ -576,6 +676,7 @@ async function saveDocument(state) {
   if (state.type === 'invoice') {
     await applyStockDeltas(stockDeltasForDoc(doc, -1)).catch((e) => console.warn('Stock update skipped', e));
   }
+  await rememberAddress(state).catch((e) => console.warn('Address not saved to the customer', e));
   return { id, doc };
 }
 
@@ -617,7 +718,14 @@ function documentAction(type) {
     init: (preset) => ({ type, customer: preset.customer || null, lines: [newLine()] }),
     steps: (state) => [
       { id: 'customer', kind: 'customer', label: `Who is this ${noun} for?`,
-        hint: 'Pick a customer. If they are new, type their name and add them.' },
+        hint: 'Pick a customer. If they are new, type their name and add them.',
+        // A different customer means a different address block; the same one
+        // keeps whatever was confirmed or typed.
+        after: (s) => { if (s.billToFor !== s.customer.id) { s.billTo = undefined; s.billToFor = s.customer.id; } } },
+      { id: 'billto', kind: 'billto', label: 'Bill to',
+        hint: (s) => (s.customer?._isNew || !String(s.customer?.address || '').trim()
+          ? 'There is no address on file yet. Type it as it should print.'
+          : 'This is how it will print on the ' + noun + '.') },
       ...lineSteps(state),
       { id: 'review', kind: 'review', label: 'Everything right?',
         hint: (s) => (s.numberPreview ? `This will be ${noun} #${s.numberPreview}.` : ''),
@@ -665,7 +773,7 @@ ACTIONS.payment = {
       },
       get: (s) => s.amountCents, set: (s, v) => { s.amountCents = v; },
       validate: (cents) => (cents > 0 ? '' : 'Enter the amount received.') },
-    { id: 'method', kind: 'choice', label: 'How did they pay?', columns: 2,
+    { id: 'method', kind: 'choice', label: 'How did they pay?', columns: 3,
       options: PAYMENT_METHODS.map((m) => ({ value: m.value, title: T(m.key) })),
       get: (s) => s.method, set: (s, v) => { s.method = v; } },
     { id: 'apply', kind: 'choice', label: 'Put it against which invoice?',
@@ -885,20 +993,34 @@ ACTIONS.statement = {
   ],
 };
 
-const MENU = [ACTIONS.invoice, ACTIONS.payment, ACTIONS.customer, ACTIONS.quote, ACTIONS.balance, ACTIONS.statement];
+// The order things are done in at the counter. The first is the one done
+// most, and it is drawn to say so.
+const MENU = [
+  { action: ACTIONS.invoice, hero: true, span: 2 },
+  { action: ACTIONS.payment, span: 2, tone: 'green' },
+  { action: ACTIONS.customer, tone: 'slate' },
+  { action: ACTIONS.quote, tone: 'amber' },
+  { action: ACTIONS.balance, tone: 'red' },
+  { action: ACTIONS.statement, tone: 'slate' },
+];
 
 function menuPanel() {
-  const cards = MENU.map((a, i) => el('button', { type: 'button', class: 'qa-action', onclick: () => start(a) },
-    el('div', { class: 'qa-action-top' },
-      el('span', { class: 'qa-action-icon', html: a.icon }),
-      el('span', { class: 'qa-choice-key', text: String(i + 1) })),
-    el('div', { class: 'qa-action-title', text: a.title }),
-    el('div', { class: 'qa-action-desc', text: a.blurb }),
+  const cards = MENU.map(({ action, hero, span, tone }, i) => el('button', {
+    type: 'button',
+    class: 'qa-action' + (hero ? ' is-hero' : '') + (span === 2 ? ' span-2' : ''),
+    onclick: () => start(action),
+  },
+    el('span', { class: 'qa-action-key', text: String(i + 1) }),
+    el('span', { class: 'qa-action-icon' + (tone ? ` tone-${tone}` : ''), html: action.icon }),
+    el('div', { class: 'qa-action-title', text: action.title }),
+    el('div', { class: 'qa-action-desc', text: action.blurb }),
   ));
   const node = el('div', {},
-    el('h1', { class: 'qa-q', text: 'What are you doing?' }),
-    el('p', { class: 'qa-hint', text: 'Pick one. You will be asked one thing at a time.' }),
+    el('h1', { class: 'qa-heading', text: 'What are you doing?' }),
+    el('p', { class: 'qa-sub', text:
+      `${customers.length.toLocaleString('en-US')} customers · ${items.length.toLocaleString('en-US')} items in the catalogue` }),
     el('div', { class: 'qa-menu' }, ...cards),
+    todayBar(),
   );
   node.addEventListener('keydown', (e) => {
     const n = Number(e.key);
@@ -908,6 +1030,33 @@ function menuPanel() {
   });
   requestAnimationFrame(() => cards[0].focus());
   return node;
+}
+
+/**
+ * The day so far: what was invoiced and what actually came in. Read fresh
+ * each time the menu shows, since the point of it is that it is current.
+ */
+function todayBar() {
+  const invoiced = el('span', { class: 'qa-today-value', text: '…' });
+  const collected = el('span', { class: 'qa-today-value money-in', text: '…' });
+  const note = el('span', { class: 'qa-today-note', text: '' });
+  const bar = el('button', { type: 'button', class: 'qa-today',
+    onclick: () => { location.href = `invoices.html?from=${today()}&to=${today()}`; } },
+    el('span', {}, el('span', { class: 'qa-today-label', text: 'Invoiced today' }), invoiced),
+    el('span', {}, el('span', { class: 'qa-today-label', text: 'Collected today' }), collected),
+    note,
+  );
+  const day = today();
+  Promise.all([
+    loadAll('invoices', where('date', '==', day)),
+    loadAll('payments', where('date', '==', day)),
+  ]).then(([invs, pays]) => {
+    const sold = invs.filter(live);
+    invoiced.textContent = money(sold.reduce((t, i) => t + (Number(i.totalCents) || 0), 0));
+    collected.textContent = money(pays.reduce((t, p) => t + (Number(p.amountCents) || 0), 0));
+    note.textContent = `${sold.length} invoice${sold.length === 1 ? '' : 's'} · ${pays.length} payment${pays.length === 1 ? '' : 's'} · open today’s list`;
+  }).catch((e) => { console.warn(e); invoiced.textContent = '—'; collected.textContent = '—'; });
+  return bar;
 }
 
 // ===========================================================================
