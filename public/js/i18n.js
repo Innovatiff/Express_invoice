@@ -302,6 +302,7 @@ export const DICT = {
   set_new_password: 'New Password',
   set_data: 'Data',
   set_install: 'Install App',
+  set_printing: 'Printing',
   set_rebuild: 'Rebuild Invoice Balances',
   set_backup: 'Full Backup (JSON)',
   set_backup_hint: 'Downloads everything: customers, items, invoices, quotes, orders and payments.',

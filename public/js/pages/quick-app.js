@@ -543,6 +543,9 @@ const renderers = {
       ),
       el('div', { class: 'qa-next' }, ...buttons,
         el('button', { type: 'button', class: 'btn btn-default', text: 'Back to Quick Actions', onclick: () => showMenu() })),
+      d.printHint && !silentPrintSetUp() ? el('p', { class: 'qa-done-hint', html:
+        'Print shows a dialog? The counter computer can print without one — '
+        + '<a href="settings.html#printing" target="_blank" rel="noopener">see Settings → Printing</a>.' }) : null,
     );
     return { node, focus: () => node.querySelector('.btn-primary')?.focus() };
   },
@@ -567,6 +570,11 @@ const renderers = {
 // system print dialog itself the moment it has rendered. The dialog appears
 // over this screen; the frame is thrown away once it closes.
 // ===========================================================================
+
+/** Set from Settings → Printing once the shortcut is in place. */
+function silentPrintSetUp() {
+  try { return localStorage.getItem('silentPrintSetUp') === '1'; } catch { return false; }
+}
 
 function printDocument(url, button) {
   const label = button ? button.innerHTML : '';
@@ -765,6 +773,7 @@ function documentAction(type) {
             title: `${isInvoice ? 'Invoice' : 'Quote'} #${doc.number} saved`,
             big: money(doc.totalCents),
             text: `for ${doc.customerName}`,
+            printHint: true,
             next: [
               { label: `Print ${noun}`, onClick: (e) => printDocument(`print.html?type=${type}&id=${encodeURIComponent(id)}`, e.currentTarget) },
               isInvoice
@@ -862,6 +871,7 @@ ACTIONS.payment = {
           title: `Payment #${payment.number} recorded`,
           big: money(payment.amountCents),
           text: `from ${payment.customerName}${payment.unappliedCents > 0 ? ` · ${money(payment.unappliedCents)} kept as credit` : ''}`,
+          printHint: true,
           next: [
             { label: 'Print receipt', onClick: (e) => printDocument(`print.html?type=payment&id=${encodeURIComponent(id)}`, e.currentTarget) },
             { label: `See what ${customer.name || 'they'} still owe${customer.name ? 's' : ''}`, onClick: () => start(ACTIONS.balance, { customer }) },

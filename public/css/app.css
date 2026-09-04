@@ -1585,3 +1585,19 @@ kbd {
 .wf-node-icon:has(.ico) { display: grid; place-items: center; }
 .wf-tool-icon .ico { width: 18px; height: 18px; display: block; }
 .wf-tool-icon:has(.ico) { display: inline-grid; place-items: center; }
+
+/* --- Settings → Printing ------------------------------------------------- */
+
+#printing { scroll-margin-top: calc(var(--topbar-h) + 14px); }
+.set-h3 { margin: 16px 0 6px; font-size: 14px; font-weight: 700; }
+.set-steps { margin: 0 0 8px; padding-left: 22px; font-size: 13.5px; line-height: 1.55; }
+.set-steps li { margin: 2px 0; }
+.cmdline-wrap { display: flex; gap: 8px; align-items: flex-start; margin: 6px 0 10px; }
+.cmdline {
+  flex: 1; min-width: 0; resize: none;
+  font: 12.5px/1.45 var(--mono); color: var(--text);
+  background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  padding: 8px 10px; white-space: pre-wrap; word-break: break-all;
+}
+.qa-done-hint { margin: 14px 0 0; font-size: 13px; color: var(--muted); text-align: center; }
+.qa-done-hint a { color: var(--primary); font-weight: 600; }

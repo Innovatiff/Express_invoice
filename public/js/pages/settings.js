@@ -307,6 +307,70 @@ if (isInstalled()) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Silent printing.
+//
+// A web page cannot skip the print dialog: the browser owns it. What can is
+// Chrome's kiosk-printing mode, which sends every print straight to the
+// default printer. Run from a shortcut with that flag and its own profile,
+// Quick Actions prints the moment the button is pressed, and ordinary Chrome
+// windows keep asking as they always did.
+// ---------------------------------------------------------------------------
+
+const SILENT_KEY = 'silentPrintSetUp';
+const site = location.origin + location.pathname.replace(/[^/]*$/, '');
+const quickUrl = site + 'quick.html';
+const winTarget = '"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --kiosk-printing '
+  + '--user-data-dir="%LOCALAPPDATA%\\Express Invoicing" --app=' + quickUrl;
+const macCommand = 'open -na "Google Chrome" --args --kiosk-printing '
+  + '--user-data-dir="$HOME/Library/Application Support/Express Invoicing" --app=' + quickUrl;
+
+function commandBox(text, label) {
+  const box = el('textarea', { class: 'cmdline', readonly: true, rows: 2, 'aria-label': label });
+  box.value = text;
+  const copy = el('button', { type: 'button', class: 'btn btn-default btn-sm', text: 'Copy',
+    onclick: async () => {
+      try { await navigator.clipboard.writeText(text); toast('Copied.'); } catch { box.select(); document.execCommand?.('copy'); toast('Copied.'); }
+    } });
+  return el('div', { class: 'cmdline-wrap' }, box, copy);
+}
+
+let silentSetUp = false;
+try { silentSetUp = localStorage.getItem(SILENT_KEY) === '1'; } catch { /* storage off */ }
+const silentToggle = el('label', { class: 'check' },
+  el('input', { type: 'checkbox', checked: silentSetUp, onchange: (e) => {
+    try { localStorage.setItem(SILENT_KEY, e.currentTarget.checked ? '1' : '0'); } catch { /* storage off */ }
+    toast(e.currentTarget.checked ? 'Quick Actions will stop suggesting this.' : 'The hint is back.');
+  } }),
+  el('span', { text: 'Silent printing is set up on this computer — stop reminding me on the done screens' }),
+);
+
+const printingCard = card('set_printing', el('div', {},
+  el('p', { class: 'text-small text-muted', html:
+    'Printing from the app always shows the print dialog: the browser owns that box and a page cannot skip it. '
+    + 'Chrome has a <strong>kiosk printing</strong> mode that sends every print straight to the default printer instead. '
+    + 'Started from the shortcut below, Quick Actions prints the moment you press Print, and the rest of Chrome keeps asking as usual.' }),
+  el('h3', { class: 'set-h3', text: 'Windows, once, on the counter computer' }),
+  el('ol', { class: 'set-steps' },
+    el('li', { html: 'Make sure the printer you want is the <strong>default printer</strong> in Windows Settings → Printers.' }),
+    el('li', { html: 'Right-click the desktop → <strong>New → Shortcut</strong>. Paste this as the location:' }),
+  ),
+  commandBox(winTarget, 'Windows shortcut target'),
+  el('ol', { class: 'set-steps', start: 3 },
+    el('li', { html: 'Name it <strong>Quick Actions</strong> and finish. If Chrome is installed somewhere else, keep the path from your existing Chrome shortcut and add everything after the closing quote.' }),
+    el('li', { html: 'Open it. The first time it asks you to sign in — it is a separate Chrome profile, so it remembers you from then on.' }),
+  ),
+  el('h3', { class: 'set-h3', text: 'Mac' }),
+  el('p', { class: 'text-small text-muted', text: 'The same thing from Terminal (or saved as an Automator app):' }),
+  commandBox(macCommand, 'Mac command'),
+  el('div', { class: 'mt-2' }, silentToggle),
+));
+printingCard.id = 'printing';
+page.append(printingCard);
+// The link from the done screens arrives before this card exists, so the
+// browser's own jump to #printing has already missed. Do it now.
+if (location.hash === '#printing') requestAnimationFrame(() => printingCard.scrollIntoView({ block: 'start' }));
+
 page.append(card('set_data', el('div', {},
   el('p', { class: 'text-small text-muted',
     html: `${T('set_backup_hint')}` }),
